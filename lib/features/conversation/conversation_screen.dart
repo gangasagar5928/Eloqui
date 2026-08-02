@@ -9,9 +9,12 @@ import '../../core/services/ai_engine.dart';
 import '../../core/services/ai_session_manager.dart';
 import '../../core/services/grammar_service.dart';
 import '../../core/services/ielts_evaluator.dart';
+import '../../core/services/stt_service.dart';
 import '../../core/database/db_helper.dart';
 
-final _aiEngineProvider = Provider<AIEngine>((ref) => MockAIEngine());
+final _aiEngineProvider = Provider<AIEngine>((ref) {
+  return AISessionManager.instance.activeEngine ?? MockAIEngine();
+});
 
 class ConversationScreen extends ConsumerStatefulWidget {
   const ConversationScreen({super.key});
@@ -529,30 +532,42 @@ class _InputBarState extends State<_InputBar> {
     }
 
     if (_isRecording) {
-      // Stop recording — only send if user typed something
+      // Stop recording
       setState(() => _isRecording = false);
+      await NativeSttService.instance.stop();
       final text = widget.controller.text.trim();
       if (text.isNotEmpty) {
         widget.onSend(text);
       } else {
-        // Show guidance — don't inject fake text
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('No speech captured. Type your message or try again.'),
+              content: Text('No speech captured. Speak clearly or type your response.'),
               duration: Duration(seconds: 3),
             ),
           );
         }
       }
     } else {
-      // Start recording
+      // Start real-time speech recognition
       setState(() => _isRecording = true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('🎙️ Listening... Speak now! Tap mic again when finished.'),
-          duration: Duration(seconds: 5),
+          content: Text('🎙️ Listening... Speak now! Words will appear in real time.'),
+          duration: Duration(seconds: 4),
         ),
+      );
+      await NativeSttService.instance.listen(
+        onResult: (recognizedText) {
+          if (mounted) {
+            setState(() {
+              widget.controller.text = recognizedText;
+              widget.controller.selection = TextSelection.fromPosition(
+                TextPosition(offset: recognizedText.length),
+              );
+            });
+          }
+        },
       );
     }
   }
