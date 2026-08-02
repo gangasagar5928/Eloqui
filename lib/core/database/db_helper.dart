@@ -435,6 +435,11 @@ class DbHelper {
     return rows.isEmpty ? null : rows.first;
   }
 
+  Future<List<Map<String, dynamic>>> getDownloadRecords() async {
+    final db = await database;
+    return db.query('downloads', orderBy: 'downloaded_at DESC');
+  }
+
   // --- Achievements ---
   Future<List<Map<String, dynamic>>> getAchievements() async {
     final db = await database;

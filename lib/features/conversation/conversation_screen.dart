@@ -549,7 +549,8 @@ class _InputBarState extends State<_InputBar> {
         }
       }
     } else {
-      // Start real-time speech recognition
+      // Start real-time speech recognition — clear previous text first
+      widget.controller.clear();
       setState(() => _isRecording = true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

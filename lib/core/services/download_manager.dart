@@ -117,4 +117,19 @@ class DownloadManager {
     final file = File(record['file_path'] as String);
     return file.exists();
   }
+
+  /// Get the file path of the most recently downloaded verified GGUF model pack
+  Future<String?> getLatestDownloadedModelPath() async {
+    final records = await DbHelper.instance.getDownloadRecords();
+    for (final r in records) {
+      final path = r['file_path'] as String?;
+      if (path != null && path.isNotEmpty) {
+        final file = File(path);
+        if (await file.exists()) {
+          return path;
+        }
+      }
+    }
+    return null;
+  }
 }

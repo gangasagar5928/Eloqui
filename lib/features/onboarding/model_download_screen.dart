@@ -10,6 +10,8 @@ import 'package:path_provider/path_provider.dart';
 import '../../app/theme.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../core/services/download_manager.dart';
+import '../../core/services/ai_engine.dart';
+import '../../core/services/ai_session_manager.dart';
 
 // ─── Real Hugging Face / CDN download URLs ───────────────────────────────────
 // Using small, real, publicly hosted GGUF models from Hugging Face.
@@ -197,6 +199,9 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
         filePath: savePath,
         isVerified: true,
       );
+
+      // Mount downloaded GGUF model into AISessionManager
+      await AISessionManager.instance.initializeEngine(LlamaCppEngine(), savePath);
 
       final notifier = ref.read(settingsProvider.notifier);
       await notifier.setAiModel(selected.id);

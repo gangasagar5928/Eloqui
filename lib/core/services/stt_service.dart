@@ -49,12 +49,15 @@ class NativeSttService implements STTService {
     return _isInitialized;
   }
 
+  bool _isListening = false;
+
   Future<void> listen({required Function(String text) onResult}) async {
     final available = await initialize();
     if (available) {
+      _isListening = true;
       await _speech.listen(
         onResult: (result) {
-          if (result.recognizedWords.isNotEmpty) {
+          if (_isListening && result.recognizedWords.isNotEmpty) {
             onResult(result.recognizedWords);
           }
         },
@@ -68,6 +71,7 @@ class NativeSttService implements STTService {
   }
 
   Future<void> stop() async {
+    _isListening = false;
     await _speech.stop();
   }
 
