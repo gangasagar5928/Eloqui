@@ -1,0 +1,20 @@
+{
+  "read_aloud": [
+    "Market research plays a critical role in evaluating consumer preferences, assessing competitive landscapes, and guiding strategic product development.",
+    "Renewable energy sources such as solar and wind power are increasingly essential for mitigating climate change impacts globally.",
+    "Cognitive neuroscience explores the neural mechanisms underlying human thought, perception, memory, and emotional regulation."
+  ],
+  "describe_image": [
+    {
+      "title": "Global Urban Population Growth Chart",
+      "prompt": "Describe the bar graph showing urban vs rural population growth from 1950 to 2050 in 40 seconds."
+    },
+    {
+      "title": "Solar Energy Conversion Cycle Diagram",
+      "prompt": "Explain the process flow diagram of solar panel energy storage in 40 seconds."
+    }
+  ],
+  "retell_lecture": [
+    "In today's lecture on behavioral economics, we examined how cognitive biases distort rational decision-making in financial markets."
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "part1": [
+    "Can you tell me your full name?",
+    "Where are you from originally?",
+    "Do you work or are you a student?",
+    "What do you enjoy doing in your free time?",
+    "How do you usually spend your weekends?",
+    "Do you prefer living in a city or a rural area? Why?",
+    "What kind of food do you enjoy most?",
+    "How important is English in your daily life?",
+    "Do you enjoy reading? What kinds of books do you like?",
+    "What are your plans for the future?",
+    "Describe your home town.",
+    "Do you enjoy travelling? Why or why not?",
+    "What sports or physical activities do you enjoy?",
+    "How do you usually get to work or school?",
+    "Do you prefer indoor or outdoor activities?"
+  ],
+  "part2_topics": [
+    {
+      "topic": "Describe a person who has influenced you",
+      "points": ["Who the person is", "How you know them", "What they have done", "Why they influenced you"]
+    },
+    {
+      "topic": "Describe a place you love to visit",
+      "points": ["Where it is", "What it looks like", "What you do there", "Why you enjoy going"]
+    },
+    {
+      "topic": "Describe a memorable journey or trip",
+      "points": ["Where you went", "Who you went with", "What you did", "Why it was memorable"]
+    },
+    {
+      "topic": "Describe a skill you would like to learn",
+      "points": ["What it is", "Why you want to learn it", "How you would learn it", "How it would help you"]
+    },
+    {
+      "topic": "Describe a book that made an impression on you",
+      "points": ["What the book is called", "What it is about", "When you read it", "Why it impressed you"]
+    }
+  ],
+  "part3": [
+    "How has technology changed the way people communicate today?",
+    "Do you think social media has a positive or negative effect on society?",
+    "Should governments invest more in education or healthcare?",
+    "How important is environmental awareness in modern society?",
+    "What role should AI play in the future of work?",
+    "Do you think younger generations are more environmentally conscious?",
+    "How has globalization affected local cultures?",
+    "What are the advantages and disadvantages of working from home?",
+    "Is it important for cities to preserve historical buildings?",
+    "How should governments tackle the problem of unemployment?"
+  ]
+}
