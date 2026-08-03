@@ -1,0 +1,50 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ / VSCode related
+*.iml
+*.ipr
+*.iws
+.idea/
+.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Android Studio & Gradle
+/android/.gradle/
+/android/captures/
+/android/app/debug
+/android/app/profile
+/android/app/release
+local.properties
+
+# Heavy GGUF / ONNX / STT model binaries (downloaded dynamically at runtime)
+*.gguf
+*.bin
+*.onnx
+assets/models/*.gguf
+assets/models/*.bin
+assets/models/*.onnx
+
+# Symbolication related
+app.*.symbols
+app.*.map.json
