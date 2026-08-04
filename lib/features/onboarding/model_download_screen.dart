@@ -137,18 +137,24 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
     });
 
     try {
-      final extDir = await getExternalStorageDirectory();
-      final appDir = extDir ?? await getApplicationDocumentsDirectory();
+      // Use app documents dir — always writable, no permissions needed
+      final appDir = await getApplicationDocumentsDirectory();
       final modelDir = Directory('${appDir.path}/models');
       if (!await modelDir.exists()) {
         await modelDir.create(recursive: true);
       }
       final savePath = '${modelDir.path}/${selected.id}.gguf';
 
+      // Remove stale partial file if present
+      final existingFile = File(savePath);
+      if (await existingFile.exists()) {
+        await existingFile.delete();
+      }
+
       _cancelToken = CancelToken();
       final dio = Dio();
       dio.options.connectTimeout = const Duration(seconds: 30);
-      dio.options.receiveTimeout = const Duration(minutes: 60);
+      dio.options.receiveTimeout = const Duration(minutes: 90);
 
       final startTime = DateTime.now();
 
@@ -171,10 +177,17 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
         },
         options: Options(
           headers: {'User-Agent': 'Eloqui-App/1.0'},
+          followRedirects: true,
+          maxRedirects: 5,
         ),
       );
 
-      // Record in DB
+      // Validate file actually exists and is non-zero
+      final savedFile = File(savePath);
+      if (!await savedFile.exists() || await savedFile.length() < 1024) {
+        throw Exception('Downloaded file is missing or corrupted (size too small).');
+      }
+
       setState(() {
         _downloadProgress = 1.0;
         _statusMessage = 'Verifying integrity...';
@@ -191,7 +204,7 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
         tokenizerFilename: 'tokenizer.json',
         sha256Checksum: selected.checksum,
         digitalSignatureRsa: 'SIG_OFFICIAL_ELOQUI_RSA2048_VERIFIED',
-        totalSizeBytes: File(savePath).lengthSync(),
+        totalSizeBytes: await savedFile.length(),
       );
 
       await DownloadManager.instance.recordVerifiedDownload(
@@ -226,7 +239,7 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
         setState(() {
           _isDownloading = false;
           _statusMessage = '';
-          _errorMessage = 'Download failed: ${e.message ?? "Network error"}. Check your internet connection and try again.';
+          _errorMessage = 'Download failed: ${e.message ?? "Network error"}. Check internet and try again.';
         });
       }
     } catch (e) {

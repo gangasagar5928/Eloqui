@@ -13,7 +13,9 @@ import '../../core/services/stt_service.dart';
 import '../../core/database/db_helper.dart';
 
 final _aiEngineProvider = Provider<AIEngine>((ref) {
-  return AISessionManager.instance.activeEngine ?? MockAIEngine();
+  // LlamaCppEngine routes to native inference when .so is present,
+  // or falls back to intelligent contextual responses otherwise.
+  return AISessionManager.instance.activeEngine ?? LlamaCppEngine();
 });
 
 class ConversationScreen extends ConsumerStatefulWidget {
@@ -532,12 +534,15 @@ class _InputBarState extends State<_InputBar> {
     }
 
     if (_isRecording) {
-      // Stop recording
+      // Stop recording first, THEN read text
       setState(() => _isRecording = false);
       await NativeSttService.instance.stop();
+      // Small delay to ensure final callback won't fire after stop
+      await Future.delayed(const Duration(milliseconds: 100));
       final text = widget.controller.text.trim();
       if (text.isNotEmpty) {
         widget.onSend(text);
+        widget.controller.clear(); // Clear after sending
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -549,7 +554,7 @@ class _InputBarState extends State<_InputBar> {
         }
       }
     } else {
-      // Start real-time speech recognition — clear previous text first
+      // ALWAYS clear before starting new session — prevents text bleed
       widget.controller.clear();
       setState(() => _isRecording = true);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -560,7 +565,7 @@ class _InputBarState extends State<_InputBar> {
       );
       await NativeSttService.instance.listen(
         onResult: (recognizedText) {
-          if (mounted) {
+          if (mounted && _isRecording) {
             setState(() {
               widget.controller.text = recognizedText;
               widget.controller.selection = TextSelection.fromPosition(

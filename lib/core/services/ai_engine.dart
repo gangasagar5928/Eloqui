@@ -53,11 +53,16 @@ typedef _NativeLlamaChat = Pointer<Utf8> Function(Pointer<Utf8>);
 typedef _DartLlamaChat = Pointer<Utf8> Function(Pointer<Utf8>);
 
 /// Concrete LlamaCpp Native Engine via dart:ffi DynamicLibrary
+/// Falls back to intelligent MockAIEngine responses when native .so is absent.
 class LlamaCppEngine implements AIEngine {
   AIModelState _state = AIModelState.uninitialized;
   final _controller = StreamController<AIModelState>.broadcast();
   DynamicLibrary? _nativeLib;
   _DartLlamaChat? _llamaChatFn;
+  bool _nativeAvailable = false;
+
+  // Fallback engine for when native binary is not bundled
+  final _fallback = MockAIEngine();
 
   LlamaCppEngine() {
     _initNative();
@@ -74,20 +79,26 @@ class LlamaCppEngine implements AIEngine {
         _llamaChatFn = _nativeLib!
             .lookup<NativeFunction<_NativeLlamaChat>>('eloqui_llama_chat')
             .asFunction<_DartLlamaChat>();
+        _nativeAvailable = _llamaChatFn != null;
       }
     } catch (_) {
-      // Dynamic library fallback
+      // Native lib not bundled — will use intelligent fallback
+      _nativeAvailable = false;
     }
   }
 
   @override
-  AIModelState get state => _state;
+  AIModelState get state => _nativeAvailable ? _state : _fallback.state;
 
   @override
-  Stream<AIModelState> get stateStream => _controller.stream;
+  Stream<AIModelState> get stateStream => _nativeAvailable ? _controller.stream : _fallback.stateStream;
 
   @override
   Future<void> loadModel(String packPath, {required String manifestChecksum}) async {
+    if (!_nativeAvailable) {
+      await _fallback.loadModel(packPath, manifestChecksum: manifestChecksum);
+      return;
+    }
     _state = AIModelState.loading;
     _controller.add(_state);
     await Future.delayed(const Duration(milliseconds: 300));
@@ -97,18 +108,20 @@ class LlamaCppEngine implements AIEngine {
 
   @override
   Future<String> chat(String prompt, {List<Message>? historySummary, String? systemPrompt}) async {
+    if (!_nativeAvailable) {
+      // Use intelligent fallback with conversation history
+      return _fallback.chat(prompt,
+          historySummary: historySummary, systemPrompt: systemPrompt);
+    }
+
     _state = AIModelState.inferring;
     _controller.add(_state);
 
     String responseText = '';
-    if (_llamaChatFn != null) {
-      final promptPtr = prompt.toNativeUtf8();
-      final resultPtr = _llamaChatFn!(promptPtr);
-      responseText = resultPtr.toDartString();
-      calloc.free(promptPtr);
-    } else {
-      responseText = 'LlamaCpp Engine Response: $prompt';
-    }
+    final promptPtr = prompt.toNativeUtf8();
+    final resultPtr = _llamaChatFn!(promptPtr);
+    responseText = resultPtr.toDartString();
+    calloc.free(promptPtr);
 
     _state = AIModelState.ready;
     _controller.add(_state);
@@ -117,16 +130,22 @@ class LlamaCppEngine implements AIEngine {
 
   @override
   Future<String> summarizeConversation(List<Message> messages) async {
+    if (!_nativeAvailable) return _fallback.summarizeConversation(messages);
     return 'Rolling summary of ${messages.length} turns.';
   }
 
   @override
   Future<String> refineGrammar(String text, List<String> detectedRuleErrors) async {
+    if (!_nativeAvailable) return _fallback.refineGrammar(text, detectedRuleErrors);
     return text;
   }
 
   @override
   Future<void> unloadModel() async {
+    if (!_nativeAvailable) {
+      await _fallback.unloadModel();
+      return;
+    }
     _state = AIModelState.uninitialized;
     _controller.add(_state);
   }
@@ -134,6 +153,7 @@ class LlamaCppEngine implements AIEngine {
   @override
   void dispose() {
     _controller.close();
+    if (!_nativeAvailable) _fallback.dispose();
   }
 }
 

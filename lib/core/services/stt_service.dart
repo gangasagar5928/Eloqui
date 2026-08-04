@@ -71,8 +71,8 @@ class NativeSttService implements STTService {
   }
 
   Future<void> stop() async {
-    _isListening = false;
-    await _speech.stop();
+    _isListening = false; // Block all further callbacks FIRST
+    await _speech.cancel(); // cancel is more immediate than stop
   }
 
   @override
