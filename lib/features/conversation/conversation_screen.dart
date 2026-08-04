@@ -150,8 +150,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       fillerCount: _totalFillerCount,
       pauseCount: pauseCount,
     );
-    final mistakes = _lastCorrections.map((c) => c.rule).toList();
-    final report = IeltsEvaluator.instance.generateCoachReport(analysis, mistakes);
+    final report = IeltsEvaluator.instance.generateCoachReport(analysis, _lastCorrections);
 
     setState(() {
       _sessionReport = report;
@@ -345,18 +344,47 @@ class _CoachReportView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          Text('Top 5 Areas for Improvement', style: Theme.of(context).textTheme.titleLarge),
+          Text('Speech Errors & How to Improve', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 10),
-          ...report.top5Mistakes.map((m) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  children: [
-                    const Icon(Icons.error_outline, color: AppColors.accentOrange, size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(m, style: const TextStyle(fontSize: 13))),
-                  ],
-                ),
-              )),
+          if (report.speechErrors.isNotEmpty)
+            ...report.speechErrors.map((err) => Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.error_outline, color: AppColors.accent, size: 16),
+                          const SizedBox(width: 6),
+                          Text(err.rule, style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 13)),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text('❌ You said: "${err.original}"', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                      const SizedBox(height: 2),
+                      Text('✅ Better: "${err.corrected}"', style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w700, fontSize: 12)),
+                      const SizedBox(height: 4),
+                      Text('💡 ${err.explanation}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                    ],
+                  ),
+                ))
+          else
+            ...report.top5Mistakes.map((m) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle_outline, color: AppColors.secondary, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(m, style: const TextStyle(fontSize: 13))),
+                    ],
+                  ),
+                )),
           const SizedBox(height: 20),
           Text('Pronunciation Focus Words', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 10),

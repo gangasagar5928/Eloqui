@@ -45,19 +45,22 @@ class DetailedScoreCriterion {
 
 class SmartIeltsEvaluation {
   final IeltsScore score;
-  final double confidencePercentage; // e.g. 92%
+  final double confidencePercentage;
   final List<DetailedScoreCriterion> criterionDetails;
+  final List<GrammarCorrection> detectedErrors;
   final String nextBandRoadmap;
 
   const SmartIeltsEvaluation({
     required this.score,
     required this.confidencePercentage,
     required this.criterionDetails,
+    required this.detectedErrors,
     required this.nextBandRoadmap,
   });
 }
 
 class EndOfSessionCoachReport {
+  final List<GrammarCorrection> speechErrors;
   final List<String> top5Mistakes;
   final List<String> newWordsLearned;
   final List<String> pronunciationFocusWords;
@@ -65,6 +68,7 @@ class EndOfSessionCoachReport {
   final int estimatedPracticeMinutes;
 
   const EndOfSessionCoachReport({
+    required this.speechErrors,
     required this.top5Mistakes,
     required this.newWordsLearned,
     required this.pronunciationFocusWords,
@@ -80,6 +84,7 @@ class IeltsEvaluator {
   SmartIeltsEvaluation evaluateSmarter(SpeakingAnalysis analysis, {String part = 'full'}) {
     final text = analysis.transcript.trim();
     final wordCount = analysis.wordCount;
+    final detectedErrors = GrammarService.instance.analyzeSync(text);
 
     // --- ZERO SPEECH / EMPTY AUDIO SAFEGUARD ---
     if (text.isEmpty || wordCount < 3 || analysis.durationSeconds < 1.0) {
@@ -123,6 +128,7 @@ class IeltsEvaluator {
         score: zeroScore,
         confidencePercentage: 0.0,
         criterionDetails: zeroDetails,
+        detectedErrors: const [],
         nextBandRoadmap: 'Please speak into your device microphone to receive an accurate AI IELTS evaluation.',
       );
     }
@@ -130,7 +136,7 @@ class IeltsEvaluator {
     // --- DYNAMIC EVALUATION FOR SPOKEN TEXT ---
     final fluency = _scoreFluency(analysis);
     final lexical = _scoreLexical(text, wordCount);
-    final grammar = _scoreGrammar(text);
+    final grammar = _scoreGrammar(text, detectedErrors.length);
     final pronunciation = _scorePronunciation(analysis);
     final overall = _roundToBand((fluency + lexical + grammar + pronunciation) / 4);
 
@@ -147,7 +153,7 @@ class IeltsEvaluator {
       DetailedScoreCriterion(
         criterionName: 'Fluency & Coherence',
         score: fluency,
-        reason: 'Pace: ${analysis.wpm.toStringAsFixed(0)} WPM (${wordCount} words in ${analysis.durationSeconds.toStringAsFixed(1)}s) with ${analysis.fillerCount} fillers.',
+        reason: 'Pace: ${analysis.wpm.toStringAsFixed(0)} WPM ($wordCount words in ${analysis.durationSeconds.toStringAsFixed(1)}s) with ${analysis.fillerCount} fillers.',
         nextBandActionableExample: 'For Band ${(fluency + 0.5).clamp(1.0, 9.0)}: Maintain 120–150 WPM pace using connectors like "Furthermore" and "Consequently".',
       ),
       DetailedScoreCriterion(
@@ -159,7 +165,7 @@ class IeltsEvaluator {
       DetailedScoreCriterion(
         criterionName: 'Grammatical Range & Accuracy',
         score: grammar,
-        reason: 'Grammatical sentence structure evaluated across $wordCount words.',
+        reason: 'Found ${detectedErrors.length} grammatical error(s) across $wordCount spoken words.',
         nextBandActionableExample: 'For Band ${(grammar + 0.5).clamp(1.0, 9.0)}: Use complex compound sentences with relative clauses ("which means...", "although...").',
       ),
       DetailedScoreCriterion(
@@ -178,6 +184,7 @@ class IeltsEvaluator {
       score: scoreObj,
       confidencePercentage: confidence,
       criterionDetails: details,
+      detectedErrors: detectedErrors,
       nextBandRoadmap: 'To improve from Band $overall to Band ${(overall + 0.5).clamp(1.0, 9.0)}, extend answers to 30+ seconds and use 2 complex connectors per response.',
     );
   }
@@ -215,14 +222,13 @@ class IeltsEvaluator {
     else if (ttr > 0.55) score += 1.5;
     else if (ttr > 0.40) score += 1.0;
 
-    // Advanced vocabulary bonus
     final advancedMatch = RegExp(r'\b(consequently|furthermore|articulate|pivotal|profound|mitigate|subsequent|nevertheless|substantial|paramount|illustrate)\b', caseSensitive: false).allMatches(text).length;
     score += (advancedMatch * 0.5).clamp(0.0, 1.5);
 
     return score.clamp(1.0, 9.0);
   }
 
-  double _scoreGrammar(String text) {
+  double _scoreGrammar(String text, int mistakeCount) {
     final wordCount = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
     if (wordCount < 10) return 3.0;
 
@@ -234,9 +240,7 @@ class IeltsEvaluator {
       score += 1.0;
     }
 
-    final mistakes = GrammarService.instance.analyzeSync(text);
-    score -= mistakes.length * 0.5;
-
+    score -= mistakeCount * 0.75;
     return score.clamp(1.0, 9.0);
   }
 
@@ -250,25 +254,15 @@ class IeltsEvaluator {
 
   double _roundToBand(double score) => (score * 2).round() / 2;
 
-  String getFeedback(IeltsScore score) {
-    if (score.overall == 0.0) {
-      return '⚠️ No Speech Detected\n\nPlease record your spoken answer using the microphone.';
-    }
-    return 'Overall Band ${score.overall} — ${score.bandLabel}\n\n'
-        '• Fluency: ${score.fluency}\n'
-        '• Lexical Resource: ${score.lexical}\n'
-        '• Grammatical Range: ${score.grammar}\n'
-        '• Pronunciation: ${score.pronunciation}';
-  }
-
-  EndOfSessionCoachReport generateCoachReport(SpeakingAnalysis analysis, List<String> detectedMistakes) {
-    final topMistakes = detectedMistakes.take(5).toList();
+  EndOfSessionCoachReport generateCoachReport(SpeakingAnalysis analysis, List<GrammarCorrection> detectedErrors) {
+    final topMistakes = detectedErrors.map((e) => '${e.rule}: "${e.original}" → "${e.corrected}"').toList();
     if (topMistakes.isEmpty) {
-      topMistakes.add('Minor hesitation on complex multisyllabic terms');
+      topMistakes.add('Great grammar! Focus on expanding your vocabulary range.');
     }
 
     return EndOfSessionCoachReport(
-      top5Mistakes: topMistakes,
+      speechErrors: detectedErrors,
+      top5Mistakes: topMistakes.take(5).toList(),
       newWordsLearned: ['articulate', 'nevertheless', 'consequently'],
       pronunciationFocusWords: ['specifically', 'particularly', 'comfortably'],
       personalizedNextLesson: 'Part 2 Cue Card: Describe an environmental challenge in your city',

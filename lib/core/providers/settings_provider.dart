@@ -18,7 +18,7 @@ class AppSettings {
     this.hasOnboarded = false,
     this.ttsAccent = TTSAccent.indian,
     this.speechSpeed = 1.0,
-    this.aiModel = 'qwen3b',
+    this.aiModel = '',  // empty = no model downloaded/active yet
     this.modelsDownloaded = false,
     this.userLevel = 'B1',
     this.userGoal = 'daily',
@@ -63,7 +63,8 @@ class SettingsNotifier extends Notifier<AppSettings> {
       hasOnboarded: prefs.getBool('hasOnboarded') ?? false,
       ttsAccent: TTSAccent.values[prefs.getInt('ttsAccent') ?? 0],
       speechSpeed: prefs.getDouble('speechSpeed') ?? 1.0,
-      aiModel: prefs.getString('aiModel') ?? 'qwen3b',
+      // Normalise legacy short IDs (e.g. 'qwen3b' -> 'qwen3b_pack')
+      aiModel: _normalisePack(prefs.getString('aiModel') ?? ''),
       modelsDownloaded: prefs.getBool('modelsDownloaded') ?? false,
       userLevel: prefs.getString('userLevel') ?? 'B1',
       userGoal: prefs.getString('userGoal') ?? 'daily',
@@ -127,3 +128,10 @@ class SettingsNotifier extends Notifier<AppSettings> {
 }
 
 final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(SettingsNotifier.new);
+
+/// Ensure pack ID always has the '_pack' suffix expected by ModelManagerService
+String _normalisePack(String id) {
+  if (id.isEmpty) return '';
+  if (!id.endsWith('_pack')) return '${id}_pack';
+  return id;
+}

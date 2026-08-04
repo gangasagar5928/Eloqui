@@ -184,6 +184,55 @@ class _IeltsResultScreenState extends State<IeltsResultScreen> {
             const SizedBox(height: 10),
             _ScoreBar('Pronunciation', _score.pronunciation, _bandColor(_score.pronunciation)),
             const SizedBox(height: 24),
+            // Speech Errors & Detailed Corrections
+            if (_evaluation.detectedErrors.isNotEmpty) ...[
+              Text('Speech Errors & How to Improve', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 12),
+              ..._evaluation.detectedErrors.map((err) => Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: AppColors.accent, size: 18),
+                        const SizedBox(width: 8),
+                        Text(err.rule, style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 14)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    RichText(
+                      text: TextSpan(
+                        style: const TextStyle(fontSize: 13),
+                        children: [
+                          const TextSpan(text: '❌ You said: ', style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w600)),
+                          TextSpan(text: '"${err.original}"', style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    RichText(
+                      text: TextSpan(
+                        style: const TextStyle(fontSize: 13),
+                        children: [
+                          const TextSpan(text: '✅ Better: ', style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w600)),
+                          TextSpan(text: '"${err.corrected}"', style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text('💡 Explanation: ${err.explanation}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4)),
+                  ],
+                ),
+              )),
+              const SizedBox(height: 24),
+            ],
             // Evaluation Criteria Details
             Text('Detailed AI Criteria Analysis', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 12),

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:speech_to_text/speech_to_text.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
 
 class WhisperResult {
   final String text;
@@ -28,12 +29,21 @@ abstract class STTService {
 }
 
 /// Real On-Device Native Speech-to-Text Recognizer
+/// Keeps the mic active until the user taps Stop — auto-restarts when
+/// Android STT cuts off after a short silence.
 class NativeSttService implements STTService {
   static final NativeSttService instance = NativeSttService._();
   NativeSttService._();
 
   final SpeechToText _speech = SpeechToText();
   bool _isInitialized = false;
+  bool _isListening = false;
+
+  // Accumulates full session text — cleared on each new listen() call
+  String _sessionText = '';
+
+  // Callback stored for auto-restart
+  Function(String text)? _onResult;
 
   bool get isAvailable => _isInitialized;
 
@@ -44,36 +54,78 @@ class NativeSttService implements STTService {
     if (_isInitialized) return true;
     _isInitialized = await _speech.initialize(
       onError: (val) => print('STT Error: $val'),
-      onStatus: (val) => print('STT Status: $val'),
+      onStatus: _onStatusChanged,
     );
     return _isInitialized;
   }
 
-  bool _isListening = false;
-
-  Future<void> listen({required Function(String text) onResult}) async {
-    final available = await initialize();
-    if (available) {
-      _isListening = true;
-      await _speech.listen(
-        onResult: (result) {
-          if (_isListening && result.recognizedWords.isNotEmpty) {
-            onResult(result.recognizedWords);
-          }
-        },
-        listenFor: const Duration(seconds: 30),
-        pauseFor: const Duration(seconds: 3),
-        partialResults: true,
-        cancelOnError: false,
-        listenMode: ListenMode.dictation,
-      );
+  /// Called when Android STT changes state.
+  /// Auto-restarts listening when it stops due to silence timeout.
+  void _onStatusChanged(String status) {
+    print('STT Status: $status');
+    // Android STT stops after silence — restart automatically
+    if (status == 'done' && _isListening) {
+      Future.delayed(const Duration(milliseconds: 200), _restartListening);
     }
   }
 
-  Future<void> stop() async {
-    _isListening = false; // Block all further callbacks FIRST
-    await _speech.cancel(); // cancel is more immediate than stop
+  Future<void> _restartListening() async {
+    if (!_isListening || _onResult == null) return;
+    await _speech.listen(
+      onResult: _handleResult,
+      listenFor: const Duration(minutes: 5),
+      pauseFor: const Duration(seconds: 8),
+      partialResults: true,
+      cancelOnError: false,
+      listenMode: ListenMode.dictation,
+    );
   }
+
+  void _handleResult(SpeechRecognitionResult result) {
+    if (!_isListening || _onResult == null) return;
+    if (result.recognizedWords.isNotEmpty) {
+      // Build cumulative session text:
+      // On final result from a segment, append; on partials just show current
+      if (result.finalResult) {
+        _sessionText = (_sessionText + ' ' + result.recognizedWords).trim();
+        _onResult!(_sessionText);
+      } else {
+        // Show accumulated + current partial
+        final display = (_sessionText + ' ' + result.recognizedWords).trim();
+        _onResult!(display);
+      }
+    }
+  }
+
+  Future<void> listen({required Function(String text) onResult}) async {
+    final available = await initialize();
+    if (!available) return;
+
+    // Clear session state — prevents previous text from bleeding
+    _sessionText = '';
+    _onResult = onResult;
+    _isListening = true;
+
+    await _speech.listen(
+      onResult: _handleResult,
+      listenFor: const Duration(minutes: 5),
+      pauseFor: const Duration(seconds: 8),
+      partialResults: true,
+      cancelOnError: false,
+      listenMode: ListenMode.dictation,
+    );
+  }
+
+  Future<void> stop() async {
+    _isListening = false; // Block callbacks FIRST
+    _onResult = null;
+    await _speech.cancel();
+    // Small guard to swallow any in-flight callbacks
+    await Future.delayed(const Duration(milliseconds: 150));
+  }
+
+  /// Returns the final accumulated text from this session
+  String get sessionText => _sessionText;
 
   @override
   Future<void> loadModel(String modelPath) async {
@@ -82,16 +134,14 @@ class NativeSttService implements STTService {
 
   @override
   Future<WhisperResult> transcribe(File audioFile) async {
-    // Legacy fallback bridge
-    return const WhisperResult(
-      text: '',
-      duration: 0.0,
-    );
+    return const WhisperResult(text: '', duration: 0.0);
   }
 
   @override
   void dispose() {
-    _speech.stop();
+    _isListening = false;
+    _onResult = null;
+    _speech.cancel();
   }
 }
 
