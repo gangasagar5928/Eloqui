@@ -55,9 +55,8 @@ int eloqui_native_ping() {
 
 __attribute__((visibility("default"))) __attribute__((used))
 const char* eloqui_llama_chat(const char* prompt) {
-    static std::string result;
-    result = "Native C++ Llama Engine: " + std::string(prompt);
-    return result.c_str();
+    std::string result = "Native C++ Llama Engine: " + std::string(prompt ? prompt : "");
+    return strdup(result.c_str());
 }
 
 } // extern "C"

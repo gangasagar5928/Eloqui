@@ -8,19 +8,29 @@ class AISessionManager {
 
   AIEngine? _activeEngine;
   bool _isLoading = false;
+  String? _lastPackPath;
+  String _lastManifestChecksum = '';
 
   AIEngine? get activeEngine => _activeEngine;
   bool get isLoaded => _activeEngine != null;
+  bool get isLoading => _isLoading;
 
   /// Load model with memory cleanup and context isolation
-  Future<void> initializeEngine(AIEngine engine, String packPath) async {
+  Future<void> initializeEngine(AIEngine engine, String packPath, {String manifestChecksum = ''}) async {
+    if (_isLoading) return;
     _isLoading = true;
-    // 1. Centralized Memory Cleanup before loading new model
-    await cleanupMemory();
+    _lastPackPath = packPath;
+    _lastManifestChecksum = manifestChecksum;
 
-    _activeEngine = engine;
-    await _activeEngine?.loadModel(packPath, manifestChecksum: '');
-    _isLoading = false;
+    try {
+      // 1. Centralized Memory Cleanup before loading new model
+      await cleanupMemory();
+
+      _activeEngine = engine;
+      await _activeEngine?.loadModel(packPath, manifestChecksum: manifestChecksum);
+    } finally {
+      _isLoading = false;
+    }
   }
 
   /// Execute chat with timeout handling and automatic recovery
@@ -55,8 +65,8 @@ class AISessionManager {
   /// Recover AI engine lifecycle
   Future<void> recoverEngine() async {
     await NativeResourceManager.instance.releaseAllResources();
-    if (_activeEngine != null) {
-      await _activeEngine?.loadModel('default', manifestChecksum: '');
+    if (_activeEngine != null && _lastPackPath != null) {
+      await _activeEngine?.loadModel(_lastPackPath!, manifestChecksum: _lastManifestChecksum);
     }
   }
 }

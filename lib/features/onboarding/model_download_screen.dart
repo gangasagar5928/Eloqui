@@ -136,123 +136,47 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
       _errorMessage = '';
     });
 
-    try {
-      // Use app documents dir — always writable, no permissions needed
-      final appDir = await getApplicationDocumentsDirectory();
-      final modelDir = Directory('${appDir.path}/models');
-      if (!await modelDir.exists()) {
-        await modelDir.create(recursive: true);
-      }
-      final savePath = '${modelDir.path}/${selected.id}.gguf';
+    // Delegate download to background manager so it survives navigation
+    DownloadManager.instance.startBackgroundDownload(
+      packId: selected.id,
+      packName: selected.packName,
+      url: url,
+    );
 
-      // Remove stale partial file if present
-      final existingFile = File(savePath);
-      if (await existingFile.exists()) {
-        await existingFile.delete();
-      }
+    // Listen to download progress
+    DownloadManager.instance.statusStream.listen((status) async {
+      if (!mounted) return;
+      if (status.isCompleted) {
+        final notifier = ref.read(settingsProvider.notifier);
+        await notifier.setAiModel(selected.id);
+        await notifier.setModelsDownloaded(true);
+        await notifier.setHasOnboarded(true);
 
-      _cancelToken = CancelToken();
-      final dio = Dio();
-      dio.options.connectTimeout = const Duration(seconds: 30);
-      dio.options.receiveTimeout = const Duration(minutes: 90);
+        setState(() {
+          _statusMessage = '✅ Model installed successfully!';
+          _isDownloading = false;
+        });
 
-      final startTime = DateTime.now();
-
-      await dio.download(
-        url,
-        savePath,
-        cancelToken: _cancelToken,
-        onReceiveProgress: (received, total) {
-          if (!mounted) return;
-          final elapsed = DateTime.now().difference(startTime).inSeconds;
-          final speedMBps = elapsed > 0 ? (received / 1024 / 1024) / elapsed : 0.0;
-          final progress = total > 0 ? received / total : 0.0;
-          final receivedMB = (received / 1024 / 1024).toStringAsFixed(1);
-          final totalMB = total > 0 ? (total / 1024 / 1024).toStringAsFixed(0) : '?';
-          setState(() {
-            _downloadProgress = progress;
-            _downloadSpeed = '${speedMBps.toStringAsFixed(1)} MB/s';
-            _statusMessage = 'Downloading... $receivedMB MB / $totalMB MB';
-          });
-        },
-        options: Options(
-          headers: {'User-Agent': 'Eloqui-App/1.0'},
-          followRedirects: true,
-          maxRedirects: 5,
-        ),
-      );
-
-      // Validate file actually exists and is non-zero
-      final savedFile = File(savePath);
-      if (!await savedFile.exists() || await savedFile.length() < 1024) {
-        throw Exception('Downloaded file is missing or corrupted (size too small).');
-      }
-
-      setState(() {
-        _downloadProgress = 1.0;
-        _statusMessage = 'Verifying integrity...';
-        _downloadSpeed = '';
-      });
-
-      final manifest = ModelBundleManifest(
-        packId: selected.id,
-        packName: selected.packName,
-        version: '1.0.0',
-        llmFilename: '${selected.id}.gguf',
-        whisperFilename: 'whisper_base.bin',
-        piperVoiceFilename: 'en_IN_piper.onnx',
-        tokenizerFilename: 'tokenizer.json',
-        sha256Checksum: selected.checksum,
-        digitalSignatureRsa: 'SIG_OFFICIAL_ELOQUI_RSA2048_VERIFIED',
-        totalSizeBytes: await savedFile.length(),
-      );
-
-      await DownloadManager.instance.recordVerifiedDownload(
-        manifest: manifest,
-        filePath: savePath,
-        isVerified: true,
-      );
-
-      // Mount downloaded GGUF model into AISessionManager
-      await AISessionManager.instance.initializeEngine(LlamaCppEngine(), savePath);
-
-      final notifier = ref.read(settingsProvider.notifier);
-      await notifier.setAiModel(selected.id);
-      await notifier.setModelsDownloaded(true);
-      await notifier.setHasOnboarded(true);
-
-      setState(() {
-        _statusMessage = '✅ Model installed successfully!';
-        _isDownloading = false;
-      });
-
-      await Future.delayed(const Duration(milliseconds: 800));
-      if (mounted) context.go('/home');
-    } on DioException catch (e) {
-      if (e.type == DioExceptionType.cancel) {
+        await Future.delayed(const Duration(milliseconds: 800));
+        if (mounted) context.go('/home');
+      } else if (status.isFailed) {
         setState(() {
           _isDownloading = false;
           _statusMessage = '';
-          _errorMessage = 'Download cancelled.';
+          _errorMessage = status.errorMessage ?? 'Download failed. Check internet and try again.';
         });
       } else {
         setState(() {
-          _isDownloading = false;
-          _statusMessage = '';
-          _errorMessage = 'Download failed: ${e.message ?? "Network error"}. Check internet and try again.';
+          _downloadProgress = status.progress;
+          _downloadSpeed = status.downloadSpeed;
+          _statusMessage = status.statusMessage;
         });
       }
-    } catch (e) {
-      setState(() {
-        _isDownloading = false;
-        _statusMessage = '';
-        _errorMessage = 'Error: $e';
-      });
-    }
+    });
   }
 
   void _cancelDownload() {
-    _cancelToken?.cancel('User cancelled');
+    DownloadManager.instance.cancelBackgroundDownload();
   }
 
   Future<void> _enterDemoMode() async {
@@ -263,16 +187,61 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.darkBg,
-      appBar: AppBar(
-        title: const Text('Download AI Model Bundle'),
-        automaticallyImplyLeading: false,
-      ),
-      body: _detecting
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+
+        if (_isDownloading || DownloadManager.instance.isDownloading) {
+          final choice = await showDialog<String>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              backgroundColor: AppColors.darkCard,
+              title: const Text('Model Download in Progress', style: TextStyle(color: Colors.white)),
+              content: const Text(
+                'Your AI Model is currently downloading. You can continue browsing the app while it downloads in the background.',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, 'cancel'),
+                  child: const Text('Pause Download', style: TextStyle(color: AppColors.accent)),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, 'background'),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary),
+                  child: const Text('Continue in Background →'),
+                ),
+              ],
+            ),
+          );
+
+          if (choice == 'background') {
+            final notifier = ref.read(settingsProvider.notifier);
+            await notifier.setHasOnboarded(true);
+            if (context.mounted) context.go('/home');
+          } else if (choice == 'cancel') {
+            _cancelDownload();
+            final notifier = ref.read(settingsProvider.notifier);
+            await notifier.setHasOnboarded(true);
+            if (context.mounted) context.go('/home');
+          }
+        } else {
+          final notifier = ref.read(settingsProvider.notifier);
+          await notifier.setHasOnboarded(true);
+          if (context.mounted) context.go('/home');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.darkBg,
+        appBar: AppBar(
+          title: const Text('Download AI Model Bundle'),
+          automaticallyImplyLeading: false,
+        ),
+        body: _detecting
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -386,14 +355,30 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
                     Text('${(_downloadProgress * 100).toStringAsFixed(0)}% complete',
                         style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
                     const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: _cancelDownload,
-                        icon: const Icon(Icons.cancel_outlined, size: 18),
-                        label: const Text('Cancel Download'),
-                        style: OutlinedButton.styleFrom(foregroundColor: AppColors.accent, side: const BorderSide(color: AppColors.accent)),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              final notifier = ref.read(settingsProvider.notifier);
+                              await notifier.setHasOnboarded(true);
+                              if (context.mounted) context.go('/home');
+                            },
+                            icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                            label: const Text('Continue in Background →'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.secondary,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: _cancelDownload,
+                          icon: const Icon(Icons.cancel_outlined, color: AppColors.accent),
+                          tooltip: 'Cancel Download',
+                        ),
+                      ],
                     ),
                   ] else ...[
                     if (_errorMessage.isNotEmpty)
@@ -449,6 +434,7 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
                 ],
               ),
             ),
+      ),
     );
   }
 }

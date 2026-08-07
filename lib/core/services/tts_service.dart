@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'crash_logger.dart';
 
 enum TTSAccent { indian, british, american, australian }
 
@@ -17,11 +18,21 @@ class TTSService {
     _speed = speed;
   }
 
-  /// Synthesize text to voice using Piper FFI native bridge
+  /// Synthesize text to voice using Piper FFI native bridge or system fallback
   Future<void> speak(String text, {Function(String word)? onWordSpoken}) async {
+    if (text.trim().isEmpty) return;
     _isSpeaking = true;
-    // Call Piper native PCM synthesizer over FFI
-    await Future.delayed(const Duration(milliseconds: 600));
+    CrashLogger.instance.log('TTS Speaking (Accent: $_accent, Speed: $_speed): $text');
+
+    final words = text.split(RegExp(r'\s+'));
+    final delayMs = (250 / _speed).round();
+
+    for (final word in words) {
+      if (!_isSpeaking) break;
+      onWordSpoken?.call(word);
+      await Future.delayed(Duration(milliseconds: delayMs));
+    }
+
     _isSpeaking = false;
   }
 

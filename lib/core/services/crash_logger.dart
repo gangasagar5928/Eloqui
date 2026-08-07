@@ -28,6 +28,10 @@ class CrashLogger {
     } catch (_) {}
   }
 
+  Future<void> log(String message) async {
+    await logError(message);
+  }
+
   Future<void> logError(String message, [StackTrace? stack]) async {
     try {
       if (_logFile == null) await init();

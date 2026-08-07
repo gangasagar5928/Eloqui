@@ -3,7 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../app/theme.dart';
-import '../../core/services/llm_service.dart';
+import '../../core/services/ai_session_manager.dart';
 import '../../core/services/ielts_evaluator.dart';
 import '../../core/services/stt_service.dart';
 
@@ -22,6 +22,7 @@ const _part1Questions = [
 
 class Part1Screen extends StatefulWidget {
   const Part1Screen({super.key});
+
   @override
   State<Part1Screen> createState() => _Part1ScreenState();
 }
@@ -33,7 +34,6 @@ class _Part1ScreenState extends State<Part1Screen> {
   bool _aiLoading = false;
   bool _isRecording = false;
   String? _aiFeedback;
-  final LLMService _llm = MockLLMService();
 
   Future<void> _toggleMic() async {
     final status = await Permission.microphone.status;
@@ -241,8 +241,9 @@ class _Part1ScreenState extends State<Part1Screen> {
   Future<void> _getAiFeedback() async {
     if (_controller.text.trim().isEmpty) return;
     setState(() { _aiLoading = true; _aiFeedback = null; });
-    final feedback = await _llm.generate(
+    final feedback = await AISessionManager.instance.executeChat(
       'Give concise IELTS Part 1 feedback on this answer: "${_controller.text}". Focus on vocabulary and grammar.',
+      systemPrompt: 'You are an IELTS Speaking Examiner evaluating Part 1 answers.',
     );
     if (mounted) setState(() { _aiLoading = false; _aiFeedback = feedback; });
   }

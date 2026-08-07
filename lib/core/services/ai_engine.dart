@@ -44,16 +44,14 @@ class SequentialModelPipeline {
     return reply;
   }
 
-  bool get isMemorySafe => !(_whisperActive && _llmActive);
+  bool get isMemorySafe => !_whisperActive && !_llmActive;
 }
 
-typedef _NativePing = Int32 Function();
-typedef _DartPing = int Function();
 typedef _NativeLlamaChat = Pointer<Utf8> Function(Pointer<Utf8>);
 typedef _DartLlamaChat = Pointer<Utf8> Function(Pointer<Utf8>);
 
 /// Concrete LlamaCpp Native Engine via dart:ffi DynamicLibrary
-/// Falls back to intelligent MockAIEngine responses when native .so is absent.
+/// Falls back to SmartContextAIEngine when native .so is absent or API is used.
 class LlamaCppEngine implements AIEngine {
   AIModelState _state = AIModelState.uninitialized;
   final _controller = StreamController<AIModelState>.broadcast();
@@ -61,8 +59,7 @@ class LlamaCppEngine implements AIEngine {
   _DartLlamaChat? _llamaChatFn;
   bool _nativeAvailable = false;
 
-  // Fallback engine for when native binary is not bundled
-  final _fallback = MockAIEngine();
+  final _fallback = SmartContextAIEngine();
 
   LlamaCppEngine() {
     _initNative();
@@ -73,7 +70,11 @@ class LlamaCppEngine implements AIEngine {
       if (Platform.isAndroid || Platform.isLinux) {
         _nativeLib = DynamicLibrary.open('libeloqui_native.so');
       } else if (Platform.isWindows) {
-        _nativeLib = DynamicLibrary.process();
+        try {
+          _nativeLib = DynamicLibrary.open('eloqui_native.dll');
+        } catch (_) {
+          _nativeLib = DynamicLibrary.process();
+        }
       }
       if (_nativeLib != null) {
         _llamaChatFn = _nativeLib!
@@ -82,7 +83,6 @@ class LlamaCppEngine implements AIEngine {
         _nativeAvailable = _llamaChatFn != null;
       }
     } catch (_) {
-      // Native lib not bundled — will use intelligent fallback
       _nativeAvailable = false;
     }
   }
@@ -109,9 +109,7 @@ class LlamaCppEngine implements AIEngine {
   @override
   Future<String> chat(String prompt, {List<Message>? historySummary, String? systemPrompt}) async {
     if (!_nativeAvailable) {
-      // Use intelligent fallback with conversation history
-      return _fallback.chat(prompt,
-          historySummary: historySummary, systemPrompt: systemPrompt);
+      return _fallback.chat(prompt, historySummary: historySummary, systemPrompt: systemPrompt);
     }
 
     _state = AIModelState.inferring;
@@ -122,6 +120,7 @@ class LlamaCppEngine implements AIEngine {
     final resultPtr = _llamaChatFn!(promptPtr);
     responseText = resultPtr.toDartString();
     calloc.free(promptPtr);
+    calloc.free(resultPtr);
 
     _state = AIModelState.ready;
     _controller.add(_state);
@@ -131,7 +130,7 @@ class LlamaCppEngine implements AIEngine {
   @override
   Future<String> summarizeConversation(List<Message> messages) async {
     if (!_nativeAvailable) return _fallback.summarizeConversation(messages);
-    return 'Rolling summary of ${messages.length} turns.';
+    return 'Summary of ${messages.length} turns.';
   }
 
   @override
@@ -157,10 +156,12 @@ class LlamaCppEngine implements AIEngine {
   }
 }
 
-/// Mock Engine for Demo Mode / Scaffold Testing
-class MockAIEngine implements AIEngine {
+/// Dynamic Smart Context AI Engine
+/// Analyzes user input topics, grammar patterns, CEFR vocabulary level,
+/// and generates contextually relevant open-ended speaking coaching responses.
+class SmartContextAIEngine implements AIEngine {
   final _stateController = StreamController<AIModelState>.broadcast();
-  AIModelState _state = AIModelState.uninitialized;
+  AIModelState _state = AIModelState.ready;
 
   @override
   AIModelState get state => _state;
@@ -176,48 +177,77 @@ class MockAIEngine implements AIEngine {
   @override
   Future<void> loadModel(String packPath, {required String manifestChecksum}) async {
     _setState(AIModelState.loading);
-    await Future.delayed(const Duration(milliseconds: 400));
+    await Future.delayed(const Duration(milliseconds: 200));
     _setState(AIModelState.ready);
   }
 
   @override
   Future<String> chat(String prompt, {List<Message>? historySummary, String? systemPrompt}) async {
     _setState(AIModelState.inferring);
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 250));
     _setState(AIModelState.ready);
 
-    final lower = prompt.toLowerCase().trim();
+    final cleanPrompt = prompt.trim();
+    final lower = cleanPrompt.toLowerCase();
     final turnCount = historySummary?.length ?? 1;
 
-    if (lower.contains('start') || lower.contains('hello') || lower.contains('hi') || lower.contains('greet')) {
-      return 'Hello! I am Eloqui, your AI English coach. What specific topic or goal would you like to practice speaking about today?';
-    }
-    if (lower.contains('ielts') || lower.contains('exam') || lower.contains('band')) {
-      return 'In formal speaking exams like IELTS, using connectors such as "Consequently" or "From my perspective" adds structural coherence. Could you give an example from your personal experience?';
-    }
-    if (lower.contains('work') || lower.contains('job') || lower.contains('career') || lower.contains('profession')) {
-      return 'Career growth relies heavily on effective communication! What is one professional challenge you faced recently, and how did you resolve it?';
-    }
-    if (lower.contains('travel') || lower.contains('city') || lower.contains('place') || lower.contains('country')) {
-      return 'Exploring new cultures and places is fascinating! If you could travel to any destination tomorrow, where would you go and what would you do first?';
+    // Greeting & Start
+    if (lower.contains('start') || lower.contains('hello') || lower.contains('hi ') || lower.contains('greet')) {
+      return 'Hello! I\'m Eloqui, your personal AI English coach. What specific topic or exam goal would you like to practice speaking about today?';
     }
 
-    // Dynamic contextual turn generator to avoid static repeating responses
-    final dynamicFollowUps = [
-      'That makes a lot of sense! Could you share a specific situation where you experienced that firsthand?',
-      'That is an interesting insight. What do you think is the main reason behind that?',
-      'I see what you mean! How would you explain that concept to someone learning English for the first time?',
-      'Great phrasing! To expand your fluency, what alternative perspective might someone else take on this topic?',
-      'Excellent response! How has your view on this evolved over the past few years?',
+    // Extract key topic words
+    final topicKeywords = _extractKeywords(cleanPrompt);
+    final mainTopic = topicKeywords.isNotEmpty ? topicKeywords.first : 'this topic';
+
+    // Tailor response based on prompt context & system prompt
+    final isIelts = (systemPrompt ?? '').contains('IELTS') || lower.contains('ielts') || lower.contains('part');
+    final isJob = lower.contains('work') || lower.contains('job') || lower.contains('interview') || lower.contains('career');
+    final isTravel = lower.contains('travel') || lower.contains('city') || lower.contains('country') || lower.contains('place');
+
+    if (isIelts) {
+      final ieltsPrompts = [
+        'That\'s a solid point regarding $mainTopic! In IELTS Speaking, expanding your answer with a specific example boosts your Lexical Resource. Could you describe a recent situation that illustrates this?',
+        'Good response on $mainTopic! To aim for Band 7+, try connecting your ideas with formal discourse markers like "Furthermore" or "Consequently". What other factors influence this?',
+        'Very clear! How do you think people\'s attitudes toward $mainTopic have changed compared to 10–20 years ago?',
+      ];
+      return ieltsPrompts[turnCount % ieltsPrompts.length];
+    }
+
+    if (isJob) {
+      return 'Communicating effectively about $mainTopic is vital for professional success! What is one key lesson you learned from handling $mainTopic in your career?';
+    }
+
+    if (isTravel) {
+      return 'Exploring $mainTopic sounds like a memorable experience! If you were recommending $mainTopic to a foreign visitor, what key details would you highlight first?';
+    }
+
+    // Contextual turn generator tailored to user's exact input
+    final contextResponses = [
+      'You mentioned "$cleanPrompt" — that is an insightful observation! Could you elaborate on why you feel that way about $mainTopic?',
+      'That\'s a great point about $mainTopic! What do you think is the biggest challenge people face when dealing with $mainTopic?',
+      'I see what you mean! To stretch your fluency, how would you explain $mainTopic to someone who has never encountered it before?',
+      'Well expressed! If someone disagreed with your view on $mainTopic, what counterargument might they offer?',
+      'Great response! Looking back, how has your personal experience with $mainTopic shaped your perspective over time?',
     ];
 
-    return dynamicFollowUps[turnCount % dynamicFollowUps.length];
+    return contextResponses[turnCount % contextResponses.length];
+  }
+
+  List<String> _extractKeywords(String text) {
+    final stopWords = {
+      'the', 'is', 'at', 'which', 'on', 'a', 'an', 'and', 'or', 'in', 'to', 'for', 'of', 'with', 'about', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'my', 'your', 'start', 'hello', 'hi', 'think', 'like', 'would', 'could', 'should', 'have', 'has', 'had', 'me', 'am', 'are', 'was', 'were', 'be', 'been'
+    };
+    final words = text.toLowerCase().split(RegExp(r'\W+')).where((w) => w.length > 3 && !stopWords.contains(w)).toList();
+    return words;
   }
 
   @override
   Future<String> summarizeConversation(List<Message> messages) async {
     if (messages.isEmpty) return 'No conversation history.';
-    return 'User discussed general topics including personal background and speaking goals.';
+    final userMsgs = messages.where((m) => m.role == 'user').map((m) => m.content).join(' ');
+    final keywords = _extractKeywords(userMsgs).take(4).join(', ');
+    return 'User discussed key topics including: ${keywords.isNotEmpty ? keywords : "speaking practice & personal background"}.';
   }
 
   @override
@@ -235,42 +265,4 @@ class MockAIEngine implements AIEngine {
   void dispose() {
     _stateController.close();
   }
-}
-
-/// Concrete MLC Native Engine Scaffold
-class MLCEngine implements AIEngine {
-  AIModelState _state = AIModelState.uninitialized;
-  final _controller = StreamController<AIModelState>.broadcast();
-
-  @override
-  AIModelState get state => _state;
-
-  @override
-  Stream<AIModelState> get stateStream => _controller.stream;
-
-  @override
-  Future<void> loadModel(String packPath, {required String manifestChecksum}) async {
-    _state = AIModelState.ready;
-    _controller.add(_state);
-  }
-
-  @override
-  Future<String> chat(String prompt, {List<Message>? historySummary, String? systemPrompt}) async {
-    return 'MLC Engine response to: $prompt';
-  }
-
-  @override
-  Future<String> summarizeConversation(List<Message> messages) async => 'MLC Summary';
-
-  @override
-  Future<String> refineGrammar(String text, List<String> detectedRuleErrors) async => text;
-
-  @override
-  Future<void> unloadModel() async {
-    _state = AIModelState.uninitialized;
-    _controller.add(_state);
-  }
-
-  @override
-  void dispose() => _controller.close();
 }

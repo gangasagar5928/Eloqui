@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../app/theme.dart';
-import '../../core/services/llm_service.dart';
+import '../../core/services/ai_session_manager.dart';
 import '../../core/services/ielts_evaluator.dart';
 
 const _part3Questions = [
@@ -25,7 +25,6 @@ class _Part3ScreenState extends State<Part3Screen> {
   final _controller = TextEditingController();
   bool _aiLoading = false;
   String? _aiFeedback;
-  final _llm = MockLLMService();
 
   @override
   Widget build(BuildContext context) {
@@ -132,7 +131,10 @@ class _Part3ScreenState extends State<Part3Screen> {
   Future<void> _getFeedback() async {
     if (_controller.text.trim().isEmpty) return;
     setState(() { _aiLoading = true; _aiFeedback = null; });
-    final fb = await _llm.generate('Give IELTS Part 3 feedback on: "${_controller.text}"');
+    final fb = await AISessionManager.instance.executeChat(
+      'Give IELTS Part 3 feedback on: "${_controller.text}"',
+      systemPrompt: 'You are an IELTS Speaking Examiner evaluating Part 3 abstract discussion answers.',
+    );
     if (mounted) setState(() { _aiLoading = false; _aiFeedback = fb; });
   }
 

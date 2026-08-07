@@ -64,6 +64,13 @@ class GrammarService {
 /// Standalone top-level function for compute() isolate execution
 List<GrammarCorrection> _runRuleEngine(String text) {
   final corrections = <GrammarCorrection>[];
+  final pastParticiples = {
+    'went': 'gone',
+    'came': 'come',
+    'saw': 'seen',
+    'ate': 'eaten',
+    'wrote': 'written',
+  };
   final rules = [
     // Articles
     _Rule(r'\ba ([aeiouAEIOU])', (m) => 'an ${m.group(1)}', 'Article Error', 'Use "an" before vowel sounds.'),
@@ -75,7 +82,7 @@ List<GrammarCorrection> _runRuleEngine(String text) {
     _Rule(r'\bYou is\b', (_) => 'You are', 'Subject-Verb Agreement', 'Use "are" with "you".'),
     // Tense
     _Rule(r'\bdid (went|came|saw|told|knew|had|made|got|took)\b', (m) => m.group(1)!, 'Tense Error', 'Use base verb after "did".'),
-    _Rule(r'\bI have (went|came|saw|ate|wrote)\b', (m) => 'I have ${m.group(1)}', 'Tense Error', 'Use past participle with "have".'),
+    _Rule(r'\bI have (went|came|saw|ate|wrote)\b', (m) => 'I have ${pastParticiples[m.group(1)!.toLowerCase()] ?? m.group(1)!}', 'Tense Error', 'Use past participle with "have".'),
     // Modals
     _Rule(r'\b(should|could|would|must) to\b', (m) => m.group(1)!, 'Modal Error', 'Do not use "to" after modal verbs.'),
     // Prepositions
@@ -86,12 +93,13 @@ List<GrammarCorrection> _runRuleEngine(String text) {
   ];
 
   for (final r in rules) {
-    final match = r.pattern.firstMatch(text);
-    if (match != null) {
-      final corrected = text.replaceFirstMapped(r.pattern, r.replacement);
-      if (corrected != text) {
+    final matches = r.pattern.allMatches(text);
+    for (final match in matches) {
+      final original = match.group(0)!;
+      final corrected = original.replaceFirstMapped(r.pattern, r.replacement);
+      if (corrected != original) {
         corrections.add(GrammarCorrection(
-          original: match.group(0)!,
+          original: original,
           corrected: corrected,
           rule: r.rule,
           explanation: r.explanation,

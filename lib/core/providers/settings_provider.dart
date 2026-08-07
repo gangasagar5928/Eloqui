@@ -49,80 +49,71 @@ class AppSettings {
       );
 }
 
+final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
+  throw UnimplementedError('sharedPreferencesProvider must be overridden in ProviderScope');
+});
+
 class SettingsNotifier extends Notifier<AppSettings> {
+  late final SharedPreferences _prefs;
+
   @override
   AppSettings build() {
-    _load();
-    return const AppSettings();
-  }
-
-  Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    state = AppSettings(
-      darkMode: prefs.getBool('darkMode') ?? true,
-      hasOnboarded: prefs.getBool('hasOnboarded') ?? false,
-      ttsAccent: TTSAccent.values[prefs.getInt('ttsAccent') ?? 0],
-      speechSpeed: prefs.getDouble('speechSpeed') ?? 1.0,
-      // Normalise legacy short IDs (e.g. 'qwen3b' -> 'qwen3b_pack')
-      aiModel: _normalisePack(prefs.getString('aiModel') ?? ''),
-      modelsDownloaded: prefs.getBool('modelsDownloaded') ?? false,
-      userLevel: prefs.getString('userLevel') ?? 'B1',
-      userGoal: prefs.getString('userGoal') ?? 'daily',
-      aiResponseLength: prefs.getInt('aiResponseLength') ?? 1,
+    _prefs = ref.watch(sharedPreferencesProvider);
+    return AppSettings(
+      darkMode: _prefs.getBool('darkMode') ?? true,
+      hasOnboarded: _prefs.getBool('hasOnboarded') ?? false,
+      ttsAccent: TTSAccent.values[_prefs.getInt('ttsAccent') ?? 0],
+      speechSpeed: _prefs.getDouble('speechSpeed') ?? 1.0,
+      aiModel: _normalisePack(_prefs.getString('aiModel') ?? ''),
+      modelsDownloaded: _prefs.getBool('modelsDownloaded') ?? false,
+      userLevel: _prefs.getString('userLevel') ?? 'B1',
+      userGoal: _prefs.getString('userGoal') ?? 'daily',
+      aiResponseLength: _prefs.getInt('aiResponseLength') ?? 1,
     );
   }
 
   Future<void> setDarkMode(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('darkMode', value);
+    await _prefs.setBool('darkMode', value);
     state = state.copyWith(darkMode: value);
   }
 
   Future<void> setHasOnboarded(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('hasOnboarded', value);
+    await _prefs.setBool('hasOnboarded', value);
     state = state.copyWith(hasOnboarded: value);
   }
 
   Future<void> setTtsAccent(TTSAccent accent) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('ttsAccent', accent.index);
+    await _prefs.setInt('ttsAccent', accent.index);
     state = state.copyWith(ttsAccent: accent);
   }
 
   Future<void> setAiModel(String model) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('aiModel', model);
+    await _prefs.setString('aiModel', model);
     state = state.copyWith(aiModel: model);
   }
 
   Future<void> setModelsDownloaded(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('modelsDownloaded', value);
+    await _prefs.setBool('modelsDownloaded', value);
     state = state.copyWith(modelsDownloaded: value);
   }
 
   Future<void> setUserLevel(String level) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('userLevel', level);
+    await _prefs.setString('userLevel', level);
     state = state.copyWith(userLevel: level);
   }
 
   Future<void> setUserGoal(String goal) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('userGoal', goal);
+    await _prefs.setString('userGoal', goal);
     state = state.copyWith(userGoal: goal);
   }
 
   Future<void> setSpeechSpeed(double speed) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('speechSpeed', speed);
+    await _prefs.setDouble('speechSpeed', speed);
     state = state.copyWith(speechSpeed: speed);
   }
 
   Future<void> setAiResponseLength(int length) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('aiResponseLength', length);
+    await _prefs.setInt('aiResponseLength', length);
     state = state.copyWith(aiResponseLength: length);
   }
 }

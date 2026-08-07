@@ -11,6 +11,7 @@ class SpeakingAnalysis {
   final int repeatedWordsCount;
   final double sentenceCompletionRate;
   final double volumeConsistency;
+  final double averageWordConfidence;
 
   const SpeakingAnalysis({
     required this.transcript,
@@ -22,6 +23,7 @@ class SpeakingAnalysis {
     this.repeatedWordsCount = 0,
     this.sentenceCompletionRate = 1.0,
     this.volumeConsistency = 0.95,
+    this.averageWordConfidence = 0.90,
   });
 
   int get wordCount => transcript.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
@@ -247,8 +249,24 @@ class IeltsEvaluator {
   double _scorePronunciation(SpeakingAnalysis a) {
     if (a.wordCount < 10) return 3.0;
     double score = 5.0;
-    if (a.volumeConsistency > 0.80) score += 1.5;
-    if (a.fillerCount < 2) score += 1.0;
+
+    // Acoustic Token Confidence rating from STT decoding
+    if (a.averageWordConfidence >= 0.85) {
+      score += 1.5;
+    } else if (a.averageWordConfidence < 0.65) {
+      score -= 1.5;
+    }
+
+    if (a.volumeConsistency > 0.80) score += 0.5;
+    if (a.fillerCount < 2) score += 0.5;
+    else if (a.fillerCount > 5) score -= 1.0;
+
+    if (a.hesitationCount == 0) score += 0.5;
+    else if (a.hesitationCount > 3) score -= 0.5;
+
+    if (a.averagePauseLength < 1.5) score += 0.5;
+    else if (a.averagePauseLength > 3.0) score -= 1.0;
+
     return score.clamp(1.0, 9.0);
   }
 
@@ -260,11 +278,16 @@ class IeltsEvaluator {
       topMistakes.add('Great grammar! Focus on expanding your vocabulary range.');
     }
 
+    final words = analysis.transcript.toLowerCase().split(RegExp(r'\W+')).where((w) => w.length > 5).toSet().toList();
+    final newWords = words.isNotEmpty ? words.take(3).toList() : ['articulate', 'nevertheless', 'consequently'];
+    final longWords = words.where((w) => w.length > 7).take(3).toList();
+    final pronWords = longWords.isNotEmpty ? longWords : ['specifically', 'particularly', 'comfortably'];
+
     return EndOfSessionCoachReport(
       speechErrors: detectedErrors,
       top5Mistakes: topMistakes.take(5).toList(),
-      newWordsLearned: ['articulate', 'nevertheless', 'consequently'],
-      pronunciationFocusWords: ['specifically', 'particularly', 'comfortably'],
+      newWordsLearned: newWords,
+      pronunciationFocusWords: pronWords,
       personalizedNextLesson: 'Part 2 Cue Card: Describe an environmental challenge in your city',
       estimatedPracticeMinutes: 15,
     );

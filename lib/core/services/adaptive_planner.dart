@@ -31,9 +31,14 @@ class AdaptivePlanner {
     }
 
     double latestGrammarScore = 6.0;
+    double latestFluencyScore = 6.0;
     if (ieltsScores.isNotEmpty) {
       latestGrammarScore = (ieltsScores.first['grammar'] as num).toDouble();
+      latestFluencyScore = (ieltsScores.first['fluency'] as num).toDouble();
     }
+
+    final isGrammarWeak = latestGrammarScore < 6.5;
+    final isFluencyWeak = latestFluencyScore < 6.5;
 
     return [
       AdaptiveStudyDay(
@@ -41,21 +46,21 @@ class AdaptivePlanner {
         title: 'Grammar Foundation & Weak Spots',
         focusArea: weakFocus,
         tasks: [
-          'Review article rules (a/an/the) in Grammar Checker',
+          'Review $weakFocus in Grammar Checker',
           'Practice 10 B2/C1 Vocabulary Flashcards',
           '5-min Daily AI Conversation in Interview Mode',
         ],
-        estimatedMinutes: 15,
+        estimatedMinutes: isGrammarWeak ? 25 : 15,
       ),
       AdaptiveStudyDay(
         dayNumber: 2,
         title: 'Fluency & Pacing Drill',
-        focusArea: 'Speaking Speed (WPM) & Pause reduction',
+        focusArea: isFluencyWeak ? 'Targeting Low Fluency Band ($latestFluencyScore) & Filler Reduction' : 'Speaking Speed (WPM) & Pause reduction',
         tasks: [
-          'Read Aloud Pronunciation Drill with zero fillers',
+          if (isFluencyWeak) 'Complete 3 timed 60-second speech drills without "um/uh"' else 'Read Aloud Pronunciation Drill with zero fillers',
           'IELTS Part 1 Question set (5 questions)',
         ],
-        estimatedMinutes: 20,
+        estimatedMinutes: isFluencyWeak ? 25 : 20,
       ),
       AdaptiveStudyDay(
         dayNumber: 3,
@@ -73,7 +78,7 @@ class AdaptivePlanner {
         title: 'Vocabulary Expansion & Idioms',
         focusArea: 'Lexical Resource (Type-Token Ratio)',
         tasks: [
-          'Master 15 new domain-specific words (Business/IELTS)',
+          'Master 15 new domain-specific words (${isGrammarWeak ? "Grammar/Structure Focus" : "Business/IELTS"})',
           'Practice 3 common idioms in context',
         ],
         estimatedMinutes: 15,

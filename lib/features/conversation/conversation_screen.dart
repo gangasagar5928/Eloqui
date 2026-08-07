@@ -12,10 +12,9 @@ import '../../core/services/ielts_evaluator.dart';
 import '../../core/services/stt_service.dart';
 import '../../core/database/db_helper.dart';
 
+final _defaultEngineInstance = LlamaCppEngine();
 final _aiEngineProvider = Provider<AIEngine>((ref) {
-  // LlamaCppEngine routes to native inference when .so is present,
-  // or falls back to intelligent contextual responses otherwise.
-  return AISessionManager.instance.activeEngine ?? LlamaCppEngine();
+  return AISessionManager.instance.activeEngine ?? _defaultEngineInstance;
 });
 
 class ConversationScreen extends ConsumerStatefulWidget {
@@ -45,32 +44,40 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   }
 
   Future<void> _startConversation() async {
-    _sessionStartTime = DateTime.now();
-    _totalFillerCount = 0;
-    final conv = Conversation(
-      title: '${_mode.label} Practice',
-      mode: _mode,
-    );
-    await DbHelper.instance.insertConversation(conv.toMap());
+    try {
+      _sessionStartTime = DateTime.now();
+      _totalFillerCount = 0;
+      final conv = Conversation(
+        title: '${_mode.label} Practice',
+        mode: _mode,
+      );
+      await DbHelper.instance.insertConversation(conv.toMap());
 
-    final engine = ref.read(_aiEngineProvider);
-    final greeting = await engine.chat(
-      'Start a ${_mode.label} conversation. Greet me and ask an opening question.',
-      systemPrompt: _systemPrompt(_mode),
-    );
+      final engine = ref.read(_aiEngineProvider);
+      final greeting = await engine.chat(
+        'Start a ${_mode.label} conversation. Greet me and ask an opening question.',
+        systemPrompt: _systemPrompt(_mode),
+      );
 
-    final msg = Message(
-      conversationId: conv.id,
-      role: 'assistant',
-      content: greeting,
-    );
-    await DbHelper.instance.insertMessage(msg.toMap());
+      final msg = Message(
+        conversationId: conv.id,
+        role: 'assistant',
+        content: greeting,
+      );
+      await DbHelper.instance.insertMessage(msg.toMap());
 
-    if (mounted) {
-      setState(() {
-        _conversation = conv;
-        _messages.add(msg);
-      });
+      if (mounted) {
+        setState(() {
+          _conversation = conv;
+          _messages.add(msg);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error starting conversation: $e')),
+        );
+      }
     }
   }
 
@@ -83,57 +90,73 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     if (text.trim().isEmpty || _conversation == null) return;
     _controller.clear();
 
-    // Count fillers in user text
-    _totalFillerCount += RegExp(r'\b(um|uh|er|like|you know|i mean)\b', caseSensitive: false).allMatches(text).length;
+    try {
+      // Count fillers in user text
+      _totalFillerCount += RegExp(r'\b(um|uh|er|like|you know|i mean)\b', caseSensitive: false).allMatches(text).length;
 
-    // Fast isolate-based grammar check
-    final corrections = await GrammarService.instance.analyzeHybrid(
-      text: text,
-      aiEngine: ref.read(_aiEngineProvider),
-    );
+      final userMsg = Message(
+        conversationId: _conversation!.id,
+        role: 'user',
+        content: text,
+      );
+      await DbHelper.instance.insertMessage(userMsg.toMap());
 
-    final userMsg = Message(
-      conversationId: _conversation!.id,
-      role: 'user',
-      content: text,
-    );
-    await DbHelper.instance.insertMessage(userMsg.toMap());
+      if (mounted) {
+        setState(() {
+          _messages.add(userMsg);
+          _isTyping = true;
+        });
+      }
+      _scrollToBottom();
 
-    if (mounted) {
-      setState(() {
-        _messages.add(userMsg);
-        _isTyping = true;
-        _lastCorrections = corrections;
-      });
+      // Fast isolate-based grammar check
+      final corrections = await GrammarService.instance.analyzeHybrid(
+        text: text,
+        aiEngine: ref.read(_aiEngineProvider),
+      );
+
+      if (mounted) {
+        setState(() {
+          _lastCorrections = corrections;
+        });
+      }
+
+      // Rolling Summary Workflow
+      final engine = ref.read(_aiEngineProvider);
+      if (_messages.length > 6) {
+        _rollingSummary = await engine.summarizeConversation(_messages);
+      }
+
+      final reply = await engine.chat(
+        text,
+        historySummary: _messages,
+        systemPrompt: '${_systemPrompt(_mode)}\nRolling Summary: $_rollingSummary',
+      );
+
+      final aiMsg = Message(
+        conversationId: _conversation!.id,
+        role: 'assistant',
+        content: reply,
+      );
+      await DbHelper.instance.insertMessage(aiMsg.toMap());
+
+      if (mounted) {
+        setState(() {
+          _messages.add(aiMsg);
+          _isTyping = false;
+        });
+      }
+      _scrollToBottom();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isTyping = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error sending message: $e')),
+        );
+      }
     }
-    _scrollToBottom();
-
-    // 8. Rolling Summary Workflow
-    final engine = ref.read(_aiEngineProvider);
-    if (_messages.length > 6) {
-      _rollingSummary = await engine.summarizeConversation(_messages);
-    }
-
-    final reply = await engine.chat(
-      text,
-      historySummary: _messages,
-      systemPrompt: '${_systemPrompt(_mode)}\nRolling Summary: $_rollingSummary',
-    );
-
-    final aiMsg = Message(
-      conversationId: _conversation!.id,
-      role: 'assistant',
-      content: reply,
-    );
-    await DbHelper.instance.insertMessage(aiMsg.toMap());
-
-    if (mounted) {
-      setState(() {
-        _messages.add(aiMsg);
-        _isTyping = false;
-      });
-    }
-    _scrollToBottom();
   }
 
   void _finishSession() {
@@ -149,6 +172,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       durationSeconds: elapsed.clamp(5.0, 600.0),
       fillerCount: _totalFillerCount,
       pauseCount: pauseCount,
+      averageWordConfidence: NativeSttService.instance.lastConfidence,
     );
     final report = IeltsEvaluator.instance.generateCoachReport(analysis, _lastCorrections);
 

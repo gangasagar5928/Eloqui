@@ -1,16 +1,19 @@
 import 'dart:io';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
+import 'crash_logger.dart';
 
 class WhisperResult {
   final String text;
   final List<WordTimestamp> words;
   final double duration;
+  final double confidence;
 
   const WhisperResult({
     required this.text,
     this.words = const [],
     this.duration = 0,
+    this.confidence = 0.90,
   });
 }
 
@@ -18,7 +21,14 @@ class WordTimestamp {
   final String word;
   final double start;
   final double end;
-  const WordTimestamp({required this.word, required this.start, required this.end});
+  final double confidence;
+
+  const WordTimestamp({
+    required this.word,
+    required this.start,
+    required this.end,
+    this.confidence = 0.90,
+  });
 }
 
 abstract class STTService {
@@ -41,11 +51,13 @@ class NativeSttService implements STTService {
 
   // Accumulates full session text — cleared on each new listen() call
   String _sessionText = '';
+  double _lastConfidence = 0.90;
 
   // Callback stored for auto-restart
   Function(String text)? _onResult;
 
   bool get isAvailable => _isInitialized;
+  double get lastConfidence => _lastConfidence;
 
   @override
   bool get isLoaded => _isInitialized;
@@ -53,7 +65,7 @@ class NativeSttService implements STTService {
   Future<bool> initialize() async {
     if (_isInitialized) return true;
     _isInitialized = await _speech.initialize(
-      onError: (val) => print('STT Error: $val'),
+      onError: (val) => CrashLogger.instance.log('STT Error: $val'),
       onStatus: _onStatusChanged,
     );
     return _isInitialized;
@@ -62,7 +74,7 @@ class NativeSttService implements STTService {
   /// Called when Android STT changes state.
   /// Auto-restarts listening when it stops due to silence timeout.
   void _onStatusChanged(String status) {
-    print('STT Status: $status');
+    CrashLogger.instance.log('STT Status: $status');
     // Android STT stops after silence — restart automatically
     if (status == 'done' && _isListening) {
       Future.delayed(const Duration(milliseconds: 200), _restartListening);
@@ -83,6 +95,9 @@ class NativeSttService implements STTService {
 
   void _handleResult(SpeechRecognitionResult result) {
     if (!_isListening || _onResult == null) return;
+    if (result.hasConfidenceRating && result.confidence > 0) {
+      _lastConfidence = result.confidence;
+    }
     if (result.recognizedWords.isNotEmpty) {
       // Build cumulative session text:
       // On final result from a segment, append; on partials just show current
@@ -98,6 +113,10 @@ class NativeSttService implements STTService {
   }
 
   Future<void> listen({required Function(String text) onResult}) async {
+    if (_isListening) {
+      await stop();
+    }
+
     final available = await initialize();
     if (!available) return;
 

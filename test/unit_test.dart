@@ -58,8 +58,8 @@ void main() {
   });
 
   group('AIEngine Tests', () {
-    test('MockAIEngine chat returns dynamic non-empty responses', () async {
-      final engine = MockAIEngine();
+    test('SmartContextAIEngine chat returns dynamic non-empty responses', () async {
+      final engine = SmartContextAIEngine();
       final reply1 = await engine.chat('Hello!');
       final reply2 = await engine.chat('Tell me about your work.');
       expect(reply1.isNotEmpty, isTrue);

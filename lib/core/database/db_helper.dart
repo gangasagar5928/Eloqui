@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:uuid/uuid.dart';
 
 class DbHelper {
   static final DbHelper instance = DbHelper._();
@@ -271,6 +272,7 @@ class DbHelper {
           is_unlocked INTEGER DEFAULT 0
         )
       ''');
+      await _seedDefaultAchievements(db);
     }
   }
 
@@ -397,6 +399,11 @@ class DbHelper {
     await db.insert('grammar_mistakes', data, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  Future<List<Map<String, dynamic>>> getRecentGrammarMistakes({int limit = 20}) async {
+    final db = await database;
+    return db.query('grammar_mistakes', orderBy: 'created_at DESC', limit: limit);
+  }
+
   Future<void> trackMistakeHistory(String category, String pattern, String sentence, String correction) async {
     final db = await database;
     final existing = await db.query('mistake_history', where: 'error_pattern = ?', whereArgs: [pattern]);
@@ -406,7 +413,7 @@ class DbHelper {
       await db.update('mistake_history', {'frequency': freq, 'last_occurred': now}, where: 'error_pattern = ?', whereArgs: [pattern]);
     } else {
       await db.insert('mistake_history', {
-        'id': DateTime.now().microsecondsSinceEpoch.toString(),
+        'id': const Uuid().v4(),
         'category': category,
         'error_pattern': pattern,
         'sample_sentence': sentence,

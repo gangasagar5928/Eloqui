@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../app/theme.dart';
-import '../../core/services/llm_service.dart';
+import '../../core/services/ai_session_manager.dart';
 import '../../core/services/ielts_evaluator.dart';
 
 const _cueCards = [
@@ -68,8 +68,10 @@ class _Part2ScreenState extends State<Part2Screen> {
   }
 
   Future<void> _getAiFeedback() async {
-    final feedback = await MockLLMService().generate(
-      'Give brief IELTS Part 2 speaking feedback for topic: ${_card.topic}. Focus on structure and timing.');
+    final feedback = await AISessionManager.instance.executeChat(
+      'Give brief IELTS Part 2 speaking feedback for topic: ${_card.topic}. Focus on structure and timing.',
+      systemPrompt: 'You are an IELTS Speaking Examiner evaluating Part 2 Cue Cards.',
+    );
     if (mounted) setState(() => _aiFeedback = feedback);
   }
 
