@@ -1,0 +1,92 @@
+[
+  {
+    "word": "eloquent",
+    "definition": "Fluent or persuasive in speaking or writing; clearly expressed",
+    "example": "She gave an eloquent speech that moved the entire audience.",
+    "synonyms": ["articulate", "fluent", "expressive", "persuasive"],
+    "antonyms": ["inarticulate", "tongue-tied", "stumbling"],
+    "ipa": "/ˈel.ə.kwənt/",
+    "level": "B2"
+  },
+  {
+    "word": "articulate",
+    "definition": "Having or showing the ability to speak fluently and coherently",
+    "example": "An articulate speaker can convey complex ideas clearly.",
+    "synonyms": ["eloquent", "fluent", "clear", "coherent"],
+    "antonyms": ["inarticulate", "confused", "unclear"],
+    "ipa": "/ɑːˈtɪk.jʊ.lət/",
+    "level": "C1"
+  },
+  {
+    "word": "proficient",
+    "definition": "Competent or skilled in doing or using something",
+    "example": "She is proficient in three languages.",
+    "synonyms": ["skilled", "competent", "expert", "adept"],
+    "antonyms": ["incompetent", "unskilled", "inexpert"],
+    "ipa": "/prəˈfɪʃ.ənt/",
+    "level": "B2"
+  },
+  {
+    "word": "coherent",
+    "definition": "Logical and consistent; easy to understand",
+    "example": "Please give a coherent explanation of your reasoning.",
+    "synonyms": ["logical", "consistent", "clear", "rational"],
+    "antonyms": ["incoherent", "confused", "illogical"],
+    "ipa": "/kəʊˈhɪə.rənt/",
+    "level": "B2"
+  },
+  {
+    "word": "fluent",
+    "definition": "Able to express oneself naturally and accurately in a language",
+    "example": "He is fluent in English, Hindi, and French.",
+    "synonyms": ["eloquent", "articulate", "smooth", "effortless"],
+    "antonyms": ["hesitant", "halting", "stuttering"],
+    "ipa": "/ˈfluː.ənt/",
+    "level": "B1"
+  },
+  {
+    "word": "Furthermore",
+    "definition": "In addition; besides (used to introduce a further point)",
+    "example": "The report is well-written. Furthermore, it provides useful data.",
+    "synonyms": ["moreover", "additionally", "besides", "also"],
+    "antonyms": ["however", "nevertheless", "conversely"],
+    "ipa": "/ˌfɜː.ðəˈmɔː/",
+    "level": "B2"
+  },
+  {
+    "word": "nevertheless",
+    "definition": "In spite of that; notwithstanding; all the same",
+    "example": "It was raining; nevertheless, we went for a walk.",
+    "synonyms": ["however", "nonetheless", "still", "yet"],
+    "antonyms": ["therefore", "consequently", "accordingly"],
+    "ipa": "/ˌnev.ə.ðəˈles/",
+    "level": "C1"
+  },
+  {
+    "word": "consequently",
+    "definition": "As a result; therefore",
+    "example": "He didn't study; consequently, he failed the exam.",
+    "synonyms": ["therefore", "thus", "hence", "as a result"],
+    "antonyms": ["but", "however", "despite"],
+    "ipa": "/ˈkɒn.sɪ.kwənt.li/",
+    "level": "B2"
+  },
+  {
+    "word": "perspective",
+    "definition": "A particular way of viewing things that depends on one's experience and personality",
+    "example": "From my perspective, the project was a success.",
+    "synonyms": ["viewpoint", "standpoint", "outlook", "angle"],
+    "antonyms": [],
+    "ipa": "/pəˈspek.tɪv/",
+    "level": "B2"
+  },
+  {
+    "word": "elaborate",
+    "definition": "To add more detail or information to something already said",
+    "example": "Could you elaborate on your earlier point?",
+    "synonyms": ["expand", "develop", "detail", "explain further"],
+    "antonyms": ["simplify", "abbreviate", "summarize"],
+    "ipa": "/ɪˈlæb.ər.ət/",
+    "level": "B2"
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "independent_tasks": [
+    "Do you prefer studying alone or studying in a group? Give specific reasons and examples to support your answer.",
+    "Some people prefer to live in a small town, while others prefer a large city. Which do you prefer and why?",
+    "Do you agree or disagree that students should take a gap year before entering university?",
+    "Do you prefer reading physical printed books or electronic e-books? Explain your preference."
+  ],
+  "integrated_tasks": [
+    {
+      "topic": "University Dining Hall Policy Change",
+      "readingText": "The university plans to eliminate single-use plastic containers in all dining halls starting next semester to reduce environmental waste.",
+      "prompt": "The student expresses her opinion about the announcement. State her opinion and explain the reasons she gives."
+    },
+    {
+      "topic": "Psychology: Priming Effect",
+      "readingText": "Priming is a phenomenon in which exposure to one stimulus influences how a person responds to a subsequent stimulus without conscious guidance.",
+      "prompt": "Explain how the professor's example illustrates the concept of priming."
+    }
+  ]
+}
