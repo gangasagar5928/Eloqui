@@ -1,4 +1,4 @@
-# 🎙️ Eloqui — On-Device AI English & IELTS Speaking Coach
+﻿# ðŸŽ™ï¸ Eloqui â€” On-Device AI English & IELTS Speaking Coach
 
 [![CI - Test & Build Verification](https://github.com/gangasagar5928/eloqui/actions/workflows/ci.yml/badge.svg)](https://github.com/gangasagar5928/eloqui/actions/workflows/ci.yml)
 [![Tests Passing](https://img.shields.io/badge/Tests-25%2F25%20Passing-brightgreen.svg)](test/)
@@ -11,58 +11,58 @@
 
 ---
 
-## 🌟 Why Eloqui?
+## ðŸŒŸ Why Eloqui?
 
 Mobile on-device LLM inference is hard. Running an LLM, speech-to-text, and text-to-speech concurrently crashes standard 4GB/6GB RAM smartphones (the *"Multi-Model RAM Cliff"*). 
 
 Eloqui solves this with a **Deterministic Sequential Lifecycle Pipeline** coordinated via native C++ FFI:
 ```
 [User Mic Input] 
-       │
-       ▼
-┌─────────────────────────┐
-│  1. Whisper STT (200MB) │ ──► Transcribes speech to text
-└─────────────────────────┘
-       │  (Frees STT buffer before LLM allocation)
-       ▼
-┌─────────────────────────┐
-│  2. Llama.cpp (1.1GB)   │ ──► Evaluates coherence, grammar & IELTS criteria
-└─────────────────────────┘
-       │  (Frees KV cache before audio synthesis)
-       ▼
-┌─────────────────────────┐
-│  3. Piper TTS (65MB)    │ ──► Synthesizes natural audio feedback
-└─────────────────────────┘
-       │
-       ▼
+       â”‚
+       â–¼
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚  1. Whisper STT (200MB) â”‚ â”€â”€â–º Transcribes speech to text
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+       â”‚  (Frees STT buffer before LLM allocation)
+       â–¼
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚  2. Llama.cpp (1.1GB)   â”‚ â”€â”€â–º Evaluates coherence, grammar & IELTS criteria
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+       â”‚  (Frees KV cache before audio synthesis)
+       â–¼
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚  3. Piper TTS (65MB)    â”‚ â”€â”€â–º Synthesizes natural audio feedback
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+       â”‚
+       â–¼
 [Speaker Output & Interactive Scorecard]
 ```
 > **Peak RAM never exceeds ~1.2 GB**, enabling smooth offline AI on mid-range Android devices.
 
 ---
 
-## ✨ Features
+## âœ¨ Features
 
-- 🎓 **Full IELTS Speaking Simulator**: Parts 1, 2 (Cue Card with 1-min prep timer), and Part 3 with examiner follow-ups.
-- 📊 **Dynamic 4-Criterion IELTS Evaluator**: Computes official band scores (0.0–9.0) across:
+- ðŸŽ“ **Full IELTS Speaking Simulator**: Parts 1, 2 (Cue Card with 1-min prep timer), and Part 3 with examiner follow-ups.
+- ðŸ“Š **Dynamic 4-Criterion IELTS Evaluator**: Computes official band scores (0.0â€“9.0) across:
   - *Fluency & Coherence* (WPM, pause cadence, filler word ratio)
   - *Lexical Resource* (Type-Token Ratio, C1/C2 advanced vocabulary)
   - *Grammatical Range & Accuracy* (Clause complexity, rule-based mistake detection)
   - *Pronunciation & Acoustic Pace* (Acoustic token confidence, volume consistency)
-- 🎯 **Multi-Exam Support**: Specialized modules for **TOEFL iBT** (0–30), **PTE Academic** (10–90), and **Duolingo English Test (DET)** (10–160).
-- 💬 **10+ Conversational Practice Modes**: Job Interview, Travel, Business Meeting, Airport, Healthcare, Debate, Daily Life.
-- ⚡ **Verifiable Native FFI**: Direct C ABI dynamic library link (`libeloqui_native.so` / `eloqui_native.dll`).
-- 🔒 **Zero Data Leakage**: No audio, transcripts, or personal data ever leave the device.
+- ðŸŽ¯ **Multi-Exam Support**: Specialized modules for **TOEFL iBT** (0â€“30), **PTE Academic** (10â€“90), and **Duolingo English Test (DET)** (10â€“160).
+- ðŸ’¬ **10+ Conversational Practice Modes**: Job Interview, Travel, Business Meeting, Airport, Healthcare, Debate, Daily Life.
+- âš¡ **Verifiable Native FFI**: Direct C ABI dynamic library link (`libeloqui_native.so` / `eloqui_native.dll`).
+- ðŸ”’ **Zero Data Leakage**: No audio, transcripts, or personal data ever leave the device.
 
 ---
 
-## 🔬 Verifiable Benchmark & Reproduction
+## ðŸ”¬ Verifiable Benchmark & Reproduction
 
 You can independently verify the offline pipeline, latency, and scoring engine without downloading 2GB model files:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/gangasagar5928/eloqui.git
+git clone https://github.com/gangasagar5928/Eloqui.git
 cd eloqui
 
 # 2. Run the 25-test comprehensive verification suite
@@ -84,7 +84,7 @@ dart run tool/verify_pipeline.dart
 
 ---
 
-## 🛠️ Native C++ FFI Architecture
+## ðŸ› ï¸ Native C++ FFI Architecture
 
 Eloqui interfaces Flutter Dart directly with C++ inference bindings exported in [`android/app/src/main/cpp/eloqui_native.cpp`](android/app/src/main/cpp/eloqui_native.cpp) via `dart:ffi`:
 
@@ -100,7 +100,7 @@ Eloqui interfaces Flutter Dart directly with C++ inference bindings exported in 
 
 ---
 
-## 📦 Model Compatibility & Quantization
+## ðŸ“¦ Model Compatibility & Quantization
 
 Eloqui supports standard quantized GGUF, GGML, and ONNX models downloadable directly within the in-app Model Manager:
 
@@ -112,48 +112,48 @@ Eloqui supports standard quantized GGUF, GGML, and ONNX models downloadable dire
 
 ---
 
-## 📁 Repository Structure
+## ðŸ“ Repository Structure
 
 ```
 eloqui/
-├── .github/workflows/
-│   └── ci.yml                     # Automated CI: flutter analyze + tests + apk build
-├── android/app/src/main/cpp/
-│   ├── CMakeLists.txt             # Native C++ build configuration
-│   └── eloqui_native.cpp          # Llama.cpp, Whisper, Piper FFI C ABI implementation
-├── lib/
-│   ├── app/                       # Router, theme, main app entry
-│   ├── core/
-│   │   ├── database/              # SQLite schema & database helpers
-│   │   ├── models/                # Conversation, IELTS Score, Vocab models
-│   │   └── services/
-│   │       ├── ai_engine.dart     # LlamaCppEngine & SequentialModelPipeline
-│   │       ├── native_ffi_bridge.dart # Direct Dart FFI native bridge
-│   │       ├── ielts_evaluator.dart # 4-Criterion IELTS Band calculation engine
-│   │       ├── grammar_service.dart # Real-time grammar & syntactic rule checker
-│   │       ├── stt_service.dart   # Native Whisper STT service
-│   │       ├── tts_service.dart   # Piper neural voice synthesizer
-│   │       └── download_manager.dart # HTTP Range resumable model downloader
-│   └── features/
-│       ├── ielts/                 # Parts 1, 2, 3 screens & result scorecard
-│       ├── toefl/                 # TOEFL iBT speaking tasks
-│       ├── pte/                   # PTE Academic speaking tasks
-│       ├── det/                   # Duolingo English Test simulator
-│       ├── conversation/          # Interactive roleplay & daily practice
-│       └── settings/              # Model manager, diagnostics, backups
-├── test/
-│   ├── exam_modules_test.dart     # IELTS/TOEFL/PTE score rubric unit tests
-│   ├── native_ffi_test.dart       # C ABI bindings & FFI memory safety tests
-│   ├── pipeline_test.dart         # Multi-model RAM guard & benchmark tests
-│   ├── unit_test.dart             # Grammar, STT, and manifest tests
-│   └── widget_test.dart           # UI scorecard & result widget tests
-└── tool/
-    └── verify_pipeline.dart       # Standalone CLI pipeline verification tool
+â”œâ”€â”€ .github/workflows/
+â”‚   â””â”€â”€ ci.yml                     # Automated CI: flutter analyze + tests + apk build
+â”œâ”€â”€ android/app/src/main/cpp/
+â”‚   â”œâ”€â”€ CMakeLists.txt             # Native C++ build configuration
+â”‚   â””â”€â”€ eloqui_native.cpp          # Llama.cpp, Whisper, Piper FFI C ABI implementation
+â”œâ”€â”€ lib/
+â”‚   â”œâ”€â”€ app/                       # Router, theme, main app entry
+â”‚   â”œâ”€â”€ core/
+â”‚   â”‚   â”œâ”€â”€ database/              # SQLite schema & database helpers
+â”‚   â”‚   â”œâ”€â”€ models/                # Conversation, IELTS Score, Vocab models
+â”‚   â”‚   â””â”€â”€ services/
+â”‚   â”‚       â”œâ”€â”€ ai_engine.dart     # LlamaCppEngine & SequentialModelPipeline
+â”‚   â”‚       â”œâ”€â”€ native_ffi_bridge.dart # Direct Dart FFI native bridge
+â”‚   â”‚       â”œâ”€â”€ ielts_evaluator.dart # 4-Criterion IELTS Band calculation engine
+â”‚   â”‚       â”œâ”€â”€ grammar_service.dart # Real-time grammar & syntactic rule checker
+â”‚   â”‚       â”œâ”€â”€ stt_service.dart   # Native Whisper STT service
+â”‚   â”‚       â”œâ”€â”€ tts_service.dart   # Piper neural voice synthesizer
+â”‚   â”‚       â””â”€â”€ download_manager.dart # HTTP Range resumable model downloader
+â”‚   â””â”€â”€ features/
+â”‚       â”œâ”€â”€ ielts/                 # Parts 1, 2, 3 screens & result scorecard
+â”‚       â”œâ”€â”€ toefl/                 # TOEFL iBT speaking tasks
+â”‚       â”œâ”€â”€ pte/                   # PTE Academic speaking tasks
+â”‚       â”œâ”€â”€ det/                   # Duolingo English Test simulator
+â”‚       â”œâ”€â”€ conversation/          # Interactive roleplay & daily practice
+â”‚       â””â”€â”€ settings/              # Model manager, diagnostics, backups
+â”œâ”€â”€ test/
+â”‚   â”œâ”€â”€ exam_modules_test.dart     # IELTS/TOEFL/PTE score rubric unit tests
+â”‚   â”œâ”€â”€ native_ffi_test.dart       # C ABI bindings & FFI memory safety tests
+â”‚   â”œâ”€â”€ pipeline_test.dart         # Multi-model RAM guard & benchmark tests
+â”‚   â”œâ”€â”€ unit_test.dart             # Grammar, STT, and manifest tests
+â”‚   â””â”€â”€ widget_test.dart           # UI scorecard & result widget tests
+â””â”€â”€ tool/
+    â””â”€â”€ verify_pipeline.dart       # Standalone CLI pipeline verification tool
 ```
 
 ---
 
-## 🚀 Quick Start Guide
+## ðŸš€ Quick Start Guide
 
 ### Prerequisites
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) (>= 3.22.0)
@@ -181,6 +181,6 @@ Generated APKs will be saved under `build/app/outputs/flutter-apk/`:
 
 ---
 
-## 📄 License
+## ðŸ“„ License
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License** â€” see the [LICENSE](LICENSE) file for details.
