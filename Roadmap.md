@@ -123,3 +123,9 @@ On 4GB and 6GB Android devices, running Llama LLM (1.8 GB heap) and Whisper STT 
 - [ ] **Desktop Builds**: Native Windows, macOS, and Linux builds using existing C++ FFI core
 - [ ] **Offline P2P Device Sync**: Local Wi-Fi / Bluetooth peer-to-peer data sync without cloud servers
 - [ ] **Institutional Analytics Portal**: CSV/PDF cohort progress reporting for universities and language centers
+
+
+## August 2026 Milestone Updates
+- [x] **Adaptive Silence Thresholding**: Dynamic RMS energy floor calibration for noisy real-world speech dictation.
+- [x] **CEFR Collocation Scorer**: Automated detection and scoring bonus for advanced IELTS idiomatic expressions.
+- [x] **LRU Audio Cache Management**: Auto-eviction daemon keeping local recording footprint under 50 MB on mobile devices.
