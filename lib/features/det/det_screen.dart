@@ -5,6 +5,7 @@ import '../../app/theme.dart';
 import '../../core/services/ai_session_manager.dart';
 import '../../core/services/ielts_evaluator.dart';
 import '../../core/services/stt_service.dart';
+import '../../core/widgets/glass.dart';
 
 class DetScreen extends StatefulWidget {
   const DetScreen({super.key});
@@ -108,7 +109,7 @@ class _DetScreenState extends State<DetScreen> {
     final task = _detTasks[_qIndex % _detTasks.length];
 
     return Scaffold(
-      backgroundColor: AppColors.darkBg,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(title: const Text('Duolingo English Test (DET)')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -244,12 +245,10 @@ class _DetScreenState extends State<DetScreen> {
             ),
             const SizedBox(height: 8),
 
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.darkCard,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _isRecording ? AppColors.accent : AppColors.darkBorder),
-              ),
+            GlassSurface(
+              padding: EdgeInsets.zero,
+              borderRadius: 16,
+              borderColor: _isRecording ? AppColors.accent : null,
               child: TextField(
                 controller: _controller,
                 maxLines: 5,

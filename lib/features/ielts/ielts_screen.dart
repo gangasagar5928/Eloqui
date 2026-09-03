@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../app/theme.dart';
+import '../../core/widgets/glass.dart';
 
 class IeltsScreen extends StatelessWidget {
   const IeltsScreen({super.key});
@@ -9,16 +10,20 @@ class IeltsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.darkBg,
+      backgroundColor: Colors.transparent,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 140,
             pinned: true,
-            backgroundColor: AppColors.darkBg,
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                decoration: const BoxDecoration(gradient: AppColors.gradientIELTS),
+                decoration: BoxDecoration(
+                  gradient: AppColors.gradientIELTS,
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
+                ),
                 child: SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.all(20),
@@ -28,7 +33,7 @@ class IeltsScreen extends StatelessWidget {
                       children: [
                         const Text('🎓 IELTS Speaking Coach',
                             style: TextStyle(
-                                color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+                                color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
                         const SizedBox(height: 4),
                         Text('Official band scoring • All 3 parts',
                             style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13)),
@@ -104,26 +109,27 @@ class _PartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return GlassCard(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: AppColors.darkCard,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: color.withOpacity(0.3)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(16),
+      padding: const EdgeInsets.all(18),
+      borderRadius: 22,
+      glowColor: color.withOpacity(0.4),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [color.withOpacity(0.35), color.withOpacity(0.15)],
               ),
-              child: Center(child: Text(icon, style: const TextStyle(fontSize: 28))),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: color.withOpacity(0.3)),
             ),
+            child: Center(child: Text(icon, style: const TextStyle(fontSize: 28))),
+          ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -152,7 +158,6 @@ class _PartCard extends StatelessWidget {
             ),
             const Icon(Icons.chevron_right, color: AppColors.textMuted),
           ],
-        ),
       ),
     );
   }
@@ -164,15 +169,16 @@ class _FullTestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return TapScale(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: AppColors.gradientIELTS,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(24),
           boxShadow: [
-            BoxShadow(color: const Color(0xFF667EEA).withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 6)),
+            BoxShadow(color: const Color(0xFF667EEA).withOpacity(0.4), blurRadius: 26, offset: const Offset(0, 12)),
+            BoxShadow(color: const Color(0xFF9D4EFF).withOpacity(0.25), blurRadius: 56, offset: const Offset(0, 28)),
           ],
         ),
         child: Row(
@@ -189,7 +195,11 @@ class _FullTestCard extends StatelessWidget {
             ),
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white.withOpacity(0.3)),
+              ),
               child: const Icon(Icons.play_arrow, color: Colors.white, size: 28),
             ),
           ],
@@ -210,13 +220,9 @@ class _BandGuideCard extends StatelessWidget {
       (5.0, 'Modest', AppColors.band5),
       (4.0, 'Limited', AppColors.band4),
     ];
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.darkCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.darkBorder),
-      ),
+    return GlassSurface(
+      padding: const EdgeInsets.all(18),
+      borderRadius: 22,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

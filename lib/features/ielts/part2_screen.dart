@@ -7,6 +7,7 @@ import '../../app/theme.dart';
 import '../../core/services/ai_session_manager.dart';
 import '../../core/services/ielts_evaluator.dart';
 import '../../core/services/stt_service.dart';
+import '../../core/widgets/glass.dart';
 
 const _cueCards = [
   _CueCard('Describe a person who has influenced you',
@@ -128,7 +129,7 @@ class _Part2ScreenState extends State<Part2Screen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.darkBg,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('IELTS Part 2 — Cue Card'),
       ),
@@ -239,12 +240,10 @@ class _Part2ScreenState extends State<Part2Screen> {
                 ],
               ),
               const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.darkCard,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: _isRecording ? AppColors.accent : AppColors.darkBorder),
-                ),
+              GlassSurface(
+                padding: EdgeInsets.zero,
+                borderRadius: 16,
+                borderColor: _isRecording ? AppColors.accent : null,
                 child: TextField(
                   controller: _transcriptController,
                   maxLines: 5,
@@ -274,13 +273,9 @@ class _Part2ScreenState extends State<Part2Screen> {
 
             // Done / Feedback Phase
             if (_phase == _Phase.done) ...[
-              Container(
+              GlassSurface(
                 padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: AppColors.darkCard,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.darkBorder),
-                ),
+                borderRadius: 18,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

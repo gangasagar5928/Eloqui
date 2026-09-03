@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../app/theme.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../core/database/db_helper.dart';
+import '../../core/widgets/glass.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -51,14 +52,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.darkBg,
+      backgroundColor: Colors.transparent,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 120,
             floating: true,
             snap: true,
-            backgroundColor: AppColors.darkBg,
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
             flexibleSpace: FlexibleSpaceBar(
               titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
               title: Column(
@@ -74,19 +76,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       style: TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 22,
-                          fontWeight: FontWeight.w800)),
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5)),
                 ],
               ),
             ),
             actions: [
-              IconButton(
-                onPressed: () => context.go('/settings'),
-                icon: const Icon(Icons.settings_outlined, color: AppColors.textPrimary),
-              ),
-              IconButton(
-                onPressed: () => context.go('/reports'),
-                icon: const Icon(Icons.picture_as_pdf_outlined, color: AppColors.textPrimary),
-              ),
+              _GlassIconButton(icon: Icons.settings_outlined, onTap: () => context.go('/settings')),
+              _GlassIconButton(icon: Icons.picture_as_pdf_outlined, onTap: () => context.go('/reports')),
+              const SizedBox(width: 12),
             ],
           ),
           SliverPadding(
@@ -167,20 +165,17 @@ class _StatChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.darkCard,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.darkBorder),
-        ),
+      child: GlassSurface(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+        borderRadius: 18,
+        blur: 16,
         child: Column(
           children: [
             Text(emoji, style: const TextStyle(fontSize: 20)),
             const SizedBox(height: 4),
             Text(value,
                 style: const TextStyle(
-                    color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 16)),
+                    color: AppColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 16)),
             Text(label,
                 style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
                 textAlign: TextAlign.center),
@@ -194,44 +189,72 @@ class _StatChip extends StatelessWidget {
 class _HeroCTA extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return TapScale(
       onTap: () => context.go('/conversation'),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
           gradient: AppColors.gradientPrimary,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(26),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.35),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
+              color: AppColors.primary.withOpacity(0.45),
+              blurRadius: 30,
+              offset: const Offset(0, 14),
+            ),
+            BoxShadow(
+              color: const Color(0xFFB04EFF).withOpacity(0.25),
+              blurRadius: 60,
+              offset: const Offset(0, 30),
             ),
           ],
         ),
-        child: Row(
+        child: Stack(
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Start Speaking',
-                      style: TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20)),
-                  const SizedBox(height: 6),
-                  Text('Practice with AI • Unlimited sessions',
-                      style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13)),
-                ],
+            // Liquid sheen highlight
+            Positioned(
+              top: -30,
+              right: -20,
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      Colors.white.withOpacity(0.25),
+                      Colors.white.withOpacity(0),
+                    ],
+                  ),
+                ),
               ),
             ),
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(Icons.mic, color: Colors.white, size: 30),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Start Speaking',
+                          style: TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.w800, fontSize: 21, letterSpacing: -0.3)),
+                      const SizedBox(height: 6),
+                      Text('Practice with AI • Unlimited sessions',
+                          style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13)),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.22),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withOpacity(0.35)),
+                  ),
+                  child: const Icon(Icons.mic, color: Colors.white, size: 30),
+                ),
+              ],
             ),
           ],
         ),
@@ -267,25 +290,31 @@ class _QuickActionsGrid extends StatelessWidget {
       itemCount: _actions.length,
       itemBuilder: (context, i) {
         final (route, emoji, label, grad) = _actions[i];
-        return GestureDetector(
+        return GlassCard(
           onTap: () => context.go(route),
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.darkCard,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.darkBorder),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(emoji, style: const TextStyle(fontSize: 32)),
-                const SizedBox(height: 6),
-                Text(label,
-                    style: const TextStyle(
-                        color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 12),
-                    textAlign: TextAlign.center),
-              ],
-            ),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+          borderRadius: 20,
+          glowColor: grad.colors.first.withOpacity(0.4),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  gradient: grad,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Center(
+                  child: Text(emoji, style: const TextStyle(fontSize: 22)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(label,
+                  style: const TextStyle(
+                      color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 11),
+                  textAlign: TextAlign.center),
+            ],
           ),
         );
       },
@@ -296,20 +325,12 @@ class _QuickActionsGrid extends StatelessWidget {
 class _DailyLearningCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return GlassCard(
       onTap: () => context.go('/daily'),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [const Color(0xFF1A1A35), const Color(0xFF22224A)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.darkBorder),
-        ),
-        child: Column(
+      padding: const EdgeInsets.all(18),
+      borderRadius: 24,
+      glowColor: AppColors.accentYellow.withOpacity(0.3),
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -337,7 +358,6 @@ class _DailyLearningCard extends StatelessWidget {
             const SizedBox(height: 8),
             _DailyItem('🎯', 'Speaking Challenge', 'Talk for 60s about your morning routine'),
           ],
-        ),
       ),
     );
   }
@@ -394,15 +414,12 @@ class _PracticeScroll extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, i) {
           final (emoji, label) = _modes[i];
-          return GestureDetector(
+          return GlassCard(
             onTap: () => context.go('/practice'),
-            child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            borderRadius: 18,
+            child: SizedBox(
               width: 90,
-              decoration: BoxDecoration(
-                color: AppColors.darkCard,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.darkBorder),
-              ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -417,6 +434,33 @@ class _PracticeScroll extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// A frosted circular icon button used in the home header.
+class _GlassIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _GlassIconButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: TapScale(
+        onTap: onTap,
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: GlassColors.glassStroke, width: 1),
+          ),
+          child: Icon(icon, color: AppColors.textPrimary, size: 20),
+        ),
       ),
     );
   }

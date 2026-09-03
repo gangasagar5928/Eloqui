@@ -5,6 +5,7 @@ import '../../app/theme.dart';
 import '../../core/services/grammar_service.dart';
 import '../../core/services/stt_service.dart';
 import '../../core/database/db_helper.dart';
+import '../../core/widgets/glass.dart';
 import 'package:uuid/uuid.dart';
 
 class GrammarScreen extends StatefulWidget {
@@ -80,7 +81,7 @@ class _GrammarScreenState extends State<GrammarScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.darkBg,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(title: const Text('Grammar Checker')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -138,12 +139,10 @@ class _GrammarScreenState extends State<GrammarScreen> {
             ),
             const SizedBox(height: 8),
 
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.darkCard,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _isRecording ? AppColors.accent : AppColors.darkBorder),
-              ),
+            GlassSurface(
+              padding: EdgeInsets.zero,
+              borderRadius: 16,
+              borderColor: _isRecording ? AppColors.accent : null,
               child: TextField(
                 controller: _controller,
                 maxLines: 5,

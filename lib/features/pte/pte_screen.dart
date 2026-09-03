@@ -6,6 +6,7 @@ import '../../core/services/ai_session_manager.dart';
 import '../../core/services/ielts_evaluator.dart';
 import '../../core/services/stt_service.dart';
 import '../../core/services/tts_service.dart';
+import '../../core/widgets/glass.dart';
 
 class PteScreen extends StatefulWidget {
   const PteScreen({super.key});
@@ -128,7 +129,7 @@ class _PteScreenState extends State<PteScreen> {
     final task = _pteTasks[_itemIndex % _pteTasks.length];
 
     return Scaffold(
-      backgroundColor: AppColors.darkBg,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(title: const Text('PTE Academic Speaking')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -283,12 +284,10 @@ class _PteScreenState extends State<PteScreen> {
             ),
             const SizedBox(height: 8),
 
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.darkCard,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _isRecording ? AppColors.accent : AppColors.darkBorder),
-              ),
+            GlassSurface(
+              padding: EdgeInsets.zero,
+              borderRadius: 16,
+              borderColor: _isRecording ? AppColors.accent : null,
               child: TextField(
                 controller: _answerController,
                 maxLines: 4,

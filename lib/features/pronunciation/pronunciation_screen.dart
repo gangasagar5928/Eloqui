@@ -4,6 +4,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../app/theme.dart';
 import '../../core/services/grammar_service.dart';
 import '../../core/services/stt_service.dart';
+import '../../core/widgets/glass.dart';
 
 class PronunciationScreen extends StatefulWidget {
   const PronunciationScreen({super.key});
@@ -62,7 +63,7 @@ class _PronunciationScreenState extends State<PronunciationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.darkBg,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(title: const Text('Pronunciation Analyzer')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -120,12 +121,10 @@ class _PronunciationScreenState extends State<PronunciationScreen> {
             ),
             const SizedBox(height: 8),
 
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.darkCard,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _isRecording ? AppColors.accent : AppColors.darkBorder),
-              ),
+            GlassSurface(
+              padding: EdgeInsets.zero,
+              borderRadius: 16,
+              borderColor: _isRecording ? AppColors.accent : null,
               child: TextField(
                 controller: _controller,
                 maxLines: 6,

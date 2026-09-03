@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/services/download_manager.dart';
 import '../../app/theme.dart';
+import '../../core/widgets/glass.dart';
 
 class MainShell extends StatefulWidget {
   final Widget child;
@@ -91,6 +92,7 @@ class _MainShellState extends State<MainShell> {
         }
       },
       child: Scaffold(
+        backgroundColor: Colors.transparent,
         body: Column(
           children: [
             if (isDownloading)
@@ -125,6 +127,7 @@ class _MainShellState extends State<MainShell> {
             Expanded(child: widget.child),
           ],
         ),
+        extendBody: true,
         bottomNavigationBar: _BottomNav(),
       ),
     );
@@ -141,7 +144,7 @@ class _BottomNav extends StatelessWidget {
     else if (location.startsWith('/ielts')) index = 2;
     else if (location.startsWith('/practice')) index = 3;
     else if (location.startsWith('/analytics')) index = 4;
-    return NavigationBar(
+    return GlassNavBar(
       selectedIndex: index,
       onDestinationSelected: (i) {
         switch (i) {
@@ -153,11 +156,11 @@ class _BottomNav extends StatelessWidget {
         }
       },
       destinations: const [
-        NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-        NavigationDestination(icon: Icon(Icons.chat_bubble_outline), selectedIcon: Icon(Icons.chat_bubble), label: 'Speak'),
-        NavigationDestination(icon: Icon(Icons.school_outlined), selectedIcon: Icon(Icons.school), label: 'IELTS'),
-        NavigationDestination(icon: Icon(Icons.fitness_center_outlined), selectedIcon: Icon(Icons.fitness_center), label: 'Practice'),
-        NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart), label: 'Progress'),
+        (icon: Icons.home_outlined, selectedIcon: Icons.home, label: 'Home'),
+        (icon: Icons.chat_bubble_outline, selectedIcon: Icons.chat_bubble, label: 'Speak'),
+        (icon: Icons.school_outlined, selectedIcon: Icons.school, label: 'IELTS'),
+        (icon: Icons.fitness_center_outlined, selectedIcon: Icons.fitness_center, label: 'Practice'),
+        (icon: Icons.bar_chart_outlined, selectedIcon: Icons.bar_chart, label: 'Progress'),
       ],
     );
   }

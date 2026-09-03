@@ -6,6 +6,7 @@ import '../../app/theme.dart';
 import '../../core/services/ai_session_manager.dart';
 import '../../core/services/ielts_evaluator.dart';
 import '../../core/services/stt_service.dart';
+import '../../core/widgets/glass.dart';
 
 const _part3Questions = [
   'How has technology changed the way people communicate today?',
@@ -80,7 +81,7 @@ class _Part3ScreenState extends State<Part3Screen> {
   Widget build(BuildContext context) {
     final q = _part3Questions[_qIndex % _part3Questions.length];
     return Scaffold(
-      backgroundColor: AppColors.darkBg,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('IELTS Part 3 — Two-Way Discussion'),
         actions: [
@@ -174,12 +175,10 @@ class _Part3ScreenState extends State<Part3Screen> {
             ),
             const SizedBox(height: 8),
 
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.darkCard,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _isRecording ? AppColors.accent : AppColors.darkBorder),
-              ),
+            GlassSurface(
+              padding: EdgeInsets.zero,
+              borderRadius: 16,
+              borderColor: _isRecording ? AppColors.accent : null,
               child: TextField(
                 controller: _controller,
                 maxLines: 6,

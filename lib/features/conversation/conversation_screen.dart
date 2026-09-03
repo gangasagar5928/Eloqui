@@ -11,6 +11,7 @@ import '../../core/services/grammar_service.dart';
 import '../../core/services/ielts_evaluator.dart';
 import '../../core/services/stt_service.dart';
 import '../../core/database/db_helper.dart';
+import '../../core/widgets/glass.dart';
 
 final _defaultEngineInstance = LlamaCppEngine();
 
@@ -212,7 +213,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.darkBg,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -438,13 +439,10 @@ class _CoachReportView extends StatelessWidget {
           const SizedBox(height: 20),
           Text('Personalized Next Lesson', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          Container(
+          GlassSurface(
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.darkCard,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.secondary.withOpacity(0.3)),
-            ),
+            borderRadius: 14,
+            borderColor: AppColors.secondary.withOpacity(0.3),
             child: Text(report.personalizedNextLesson,
                 style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w600)),
           ),
@@ -718,12 +716,9 @@ class _InputBarState extends State<_InputBar> {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.darkCard,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppColors.darkBorder),
-                  ),
+                child: GlassSurface(
+                  padding: EdgeInsets.zero,
+                  borderRadius: 26,
                   child: TextField(
                     controller: widget.controller,
                     style: const TextStyle(color: AppColors.textPrimary),
