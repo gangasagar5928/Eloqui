@@ -34,6 +34,15 @@ class _Part1ScreenState extends State<Part1Screen> {
   bool _aiLoading = false;
   bool _isRecording = false;
   String? _aiFeedback;
+  final DateTime _testStartTime = DateTime.now();
+
+  Future<void> _stopMicOnly() async {
+    if (!_isRecording) return;
+    // Guard setState so this is safe to call from dispose() too.
+    if (mounted) setState(() => _isRecording = false);
+    _isRecording = false;
+    await NativeSttService.instance.stop();
+  }
 
   Future<void> _toggleMic() async {
     final status = await Permission.microphone.status;
@@ -56,13 +65,12 @@ class _Part1ScreenState extends State<Part1Screen> {
     }
 
     if (_isRecording) {
-      setState(() => _isRecording = false);
-      await NativeSttService.instance.stop();
+      await _stopMicOnly();
     } else {
       setState(() => _isRecording = true);
       await NativeSttService.instance.listen(
         onResult: (text) {
-          if (mounted) {
+          if (mounted && _isRecording) {
             setState(() {
               _controller.text = text;
               _controller.selection = TextSelection.fromPosition(TextPosition(offset: text.length));
@@ -196,6 +204,11 @@ class _Part1ScreenState extends State<Part1Screen> {
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.all(16),
                 ),
+                onChanged: (val) {
+                  if (_isRecording) {
+                    _stopMicOnly();
+                  }
+                },
               ),
             ),
             const SizedBox(height: 16),
@@ -249,17 +262,20 @@ class _Part1ScreenState extends State<Part1Screen> {
   }
 
   void _nextQuestion() {
+    _stopMicOnly();
     if (_controller.text.trim().isNotEmpty) {
       _qa.add({'q': _part1Questions[_qIndex % _part1Questions.length], 'a': _controller.text});
     }
     _controller.clear();
     if (_qIndex >= _part1Questions.length - 1) {
-      final allText = _qa.map((e) => e['a']).join(' ');
+      final allText = _qa.map((e) => e['a']).join(' ').trim();
+      final elapsed = DateTime.now().difference(_testStartTime).inSeconds.toDouble();
       final words = allText.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
       final analysis = SpeakingAnalysis(
         transcript: allText,
-        durationSeconds: (words / 2.2).clamp(0.0, 120.0),
+        durationSeconds: elapsed > 5 ? elapsed : (words / 2.2).clamp(0.0, 180.0),
         fillerCount: RegExp(r'\b(um|uh|er|like)\b', caseSensitive: false).allMatches(allText).length,
+        averageWordConfidence: NativeSttService.instance.lastConfidence,
       );
       context.go('/ielts/result', extra: analysis);
     } else {
@@ -268,21 +284,25 @@ class _Part1ScreenState extends State<Part1Screen> {
   }
 
   void _finishTest() {
+    _stopMicOnly();
     if (_controller.text.trim().isNotEmpty) {
       _qa.add({'q': _part1Questions[_qIndex % _part1Questions.length], 'a': _controller.text});
     }
     final allText = _qa.map((e) => e['a']).join(' ').trim();
+    final elapsed = DateTime.now().difference(_testStartTime).inSeconds.toDouble();
     final words = allText.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
     final analysis = SpeakingAnalysis(
       transcript: allText,
-      durationSeconds: (words / 2.2).clamp(0.0, 180.0),
+      durationSeconds: elapsed > 5 ? elapsed : (words / 2.2).clamp(0.0, 180.0),
       fillerCount: RegExp(r'\b(um|uh|er|like)\b', caseSensitive: false).allMatches(allText).length,
+      averageWordConfidence: NativeSttService.instance.lastConfidence,
     );
     context.go('/ielts/result', extra: analysis);
   }
 
   @override
   void dispose() {
+    _stopMicOnly();
     _controller.dispose();
     super.dispose();
   }

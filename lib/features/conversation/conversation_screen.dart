@@ -13,9 +13,25 @@ import '../../core/services/stt_service.dart';
 import '../../core/database/db_helper.dart';
 
 final _defaultEngineInstance = LlamaCppEngine();
-final _aiEngineProvider = Provider<AIEngine>((ref) {
-  return AISessionManager.instance.activeEngine ?? _defaultEngineInstance;
+
+// Provider that reacts to AI engine state changes
+final _aiEngineProvider = StateNotifierProvider<_AiEngineNotifier, AIEngine>((ref) {
+  return _AiEngineNotifier(ref);
 });
+
+class _AiEngineNotifier extends StateNotifier<AIEngine> {
+  _AiEngineNotifier(this.ref) : super(AISessionManager.instance.activeEngine ?? _defaultEngineInstance) {
+    // Listen for engine changes
+    final sub = AISessionManager.instance.stateStream.listen((_) {
+      state = AISessionManager.instance.activeEngine ?? _defaultEngineInstance;
+    });
+    // Cancel the subscription when the notifier is disposed to avoid a
+    // dangling listener on the shared broadcast controller.
+    ref.onDispose(sub.cancel);
+  }
+
+  final Ref ref;
+}
 
 class ConversationScreen extends ConsumerStatefulWidget {
   const ConversationScreen({super.key});
@@ -565,6 +581,23 @@ class _InputBar extends StatefulWidget {
 class _InputBarState extends State<_InputBar> {
   bool _isRecording = false;
 
+  Future<void> _stopMicOnly() async {
+    if (!_isRecording) return;
+    setState(() => _isRecording = false);
+    await NativeSttService.instance.stop();
+  }
+
+  @override
+  void dispose() {
+    // Stop the global STT singleton's mic if we leave mid-recording.
+    // Avoid setState() during dispose.
+    if (_isRecording) {
+      _isRecording = false;
+      NativeSttService.instance.stop();
+    }
+    super.dispose();
+  }
+
   Future<void> _toggleMic() async {
     final status = await Permission.microphone.status;
     if (status.isDenied || status.isPermanentlyDenied) {
@@ -702,6 +735,11 @@ class _InputBarState extends State<_InputBar> {
                     ),
                     maxLines: null,
                     textCapitalization: TextCapitalization.sentences,
+                    onChanged: (val) {
+                      if (_isRecording) {
+                        _stopMicOnly();
+                      }
+                    },
                     onSubmitted: widget.onSend,
                   ),
                 ),

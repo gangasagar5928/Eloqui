@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'ai_engine.dart';
 import 'native_resource_manager.dart';
+import '../models/conversation.dart';
 
 class AISessionManager {
   static final AISessionManager instance = AISessionManager._();
@@ -11,9 +12,13 @@ class AISessionManager {
   String? _lastPackPath;
   String _lastManifestChecksum = '';
 
-  AIEngine? get activeEngine => _activeEngine;
+  final AIEngine _fallbackEngine = SmartContextAIEngine();
+  final _engineChangeController = StreamController<AIEngine>.broadcast();
+
+  AIEngine? get activeEngine => _activeEngine ?? _fallbackEngine;
   bool get isLoaded => _activeEngine != null;
   bool get isLoading => _isLoading;
+  Stream<AIEngine> get stateStream => _engineChangeController.stream;
 
   /// Load model with memory cleanup and context isolation
   Future<void> initializeEngine(AIEngine engine, String packPath, {String manifestChecksum = ''}) async {
@@ -28,27 +33,35 @@ class AISessionManager {
 
       _activeEngine = engine;
       await _activeEngine?.loadModel(packPath, manifestChecksum: manifestChecksum);
+      _engineChangeController.add(_activeEngine!);
     } finally {
       _isLoading = false;
     }
   }
 
   /// Execute chat with timeout handling and automatic recovery
-  Future<String> executeChat(String prompt, {String? systemPrompt}) async {
-    if (_activeEngine == null) {
-      return 'AI engine not loaded. Please select a model pack in Settings.';
-    }
+  Future<String> executeChat(String prompt, {String? systemPrompt, List<Message>? historySummary}) async {
+    final engine = _activeEngine ?? _fallbackEngine;
 
     try {
-      return await _activeEngine!
-          .chat(prompt, systemPrompt: systemPrompt)
+      return await engine
+          .chat(prompt, historySummary: historySummary, systemPrompt: systemPrompt)
           .timeout(const Duration(seconds: 25), onTimeout: () {
         throw TimeoutException('AI inference timed out after 25s');
       });
     } catch (e) {
-      // Automatic recovery flow
-      await recoverEngine();
-      return 'Session auto-recovered after model timeout. Ready to continue.';
+      // If the active engine failed, fall back to the smart context engine.
+      // Recover first so a later native call can be retried cleanly.
+      if (engine != _fallbackEngine) {
+        await recoverEngine();
+      }
+      // Run the fallback exactly once. If it also fails, let the error propagate
+      // to the caller instead of silently double-invoking it.
+      return await _fallbackEngine
+          .chat(prompt, historySummary: historySummary, systemPrompt: systemPrompt)
+          .timeout(const Duration(seconds: 25), onTimeout: () {
+        throw TimeoutException('AI inference timed out after 25s');
+      });
     }
   }
 
@@ -58,6 +71,7 @@ class AISessionManager {
       await _activeEngine?.unloadModel();
       _activeEngine?.dispose();
       _activeEngine = null;
+      _engineChangeController.add(_fallbackEngine);
     }
     NativeResourceManager.instance.releaseAllResources();
   }
@@ -67,7 +81,12 @@ class AISessionManager {
     NativeResourceManager.instance.releaseAllResources();
     if (_activeEngine != null && _lastPackPath != null) {
       await _activeEngine?.loadModel(_lastPackPath!, manifestChecksum: _lastManifestChecksum);
+      _engineChangeController.add(_activeEngine!);
     }
+  }
+
+  void dispose() {
+    _engineChangeController.close();
   }
 
 }

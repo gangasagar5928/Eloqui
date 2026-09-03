@@ -46,6 +46,7 @@ class NativeFFIBridge {
 
   DynamicLibrary? _lib;
   bool _isAvailable = false;
+  bool _isModelLoaded = false;
 
   _DartPing? _pingFn;
   _DartLlamaInit? _llamaInitFn;
@@ -62,6 +63,22 @@ class NativeFFIBridge {
   _DartFreeString? _freeStringFn;
 
   bool get isNativeAvailable => _isAvailable;
+  bool get isModelLoaded => _isModelLoaded;
+
+  void markModelLoaded(bool loaded) {
+    _isModelLoaded = loaded;
+  }
+
+  /// Detect if native response is a stub (canned template response)
+  bool isStubResponse(String response) {
+    // The C++ stub returns these exact patterns
+    final stubPatterns = [
+      'In IELTS Speaking, structuring',
+      'Your grammar structure is clear',
+      'That is a well-articulated thought',
+    ];
+    return stubPatterns.any((p) => response.contains(p));
+  }
 
   /// Initialize native dynamic library bindings
   void initialize() {

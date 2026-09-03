@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../app/theme.dart';
 import '../../core/services/ai_session_manager.dart';
 import '../../core/services/ielts_evaluator.dart';
+import '../../core/services/stt_service.dart';
 
 const _part3Questions = [
   'How has technology changed the way people communicate today?',
@@ -23,19 +25,67 @@ class Part3Screen extends StatefulWidget {
 class _Part3ScreenState extends State<Part3Screen> {
   int _qIndex = 0;
   final _controller = TextEditingController();
+  final List<Map<String, String>> _qa = [];
   bool _aiLoading = false;
+  bool _isRecording = false;
   String? _aiFeedback;
+  final DateTime _testStartTime = DateTime.now();
+
+  Future<void> _stopMicOnly() async {
+    if (!_isRecording) return;
+    // Guard setState so this is safe to call from dispose() too.
+    if (mounted) setState(() => _isRecording = false);
+    _isRecording = false;
+    await NativeSttService.instance.stop();
+  }
+
+  Future<void> _toggleMic() async {
+    final status = await Permission.microphone.status;
+    if (status.isDenied || status.isPermanentlyDenied) {
+      final res = await Permission.microphone.request();
+      if (!res.isGranted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('🎙️ Microphone permission is required to speak your answer.'),
+              action: SnackBarAction(
+                label: 'Settings',
+                onPressed: () => openAppSettings(),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    if (_isRecording) {
+      await _stopMicOnly();
+    } else {
+      setState(() => _isRecording = true);
+      await NativeSttService.instance.listen(
+        onResult: (text) {
+          if (mounted && _isRecording) {
+            setState(() {
+              _controller.text = text;
+              _controller.selection = TextSelection.fromPosition(TextPosition(offset: text.length));
+            });
+          }
+        },
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final q = _part3Questions[_qIndex];
+    final q = _part3Questions[_qIndex % _part3Questions.length];
     return Scaffold(
       backgroundColor: AppColors.darkBg,
       appBar: AppBar(
-        title: const Text('IELTS Part 3'),
+        title: const Text('IELTS Part 3 — Two-Way Discussion'),
         actions: [
           TextButton(
-            onPressed: () => context.go('/ielts/result'),
+            onPressed: _finishTest,
             child: const Text('Finish', style: TextStyle(color: AppColors.secondary)),
           ),
         ],
@@ -45,6 +95,18 @@ class _Part3ScreenState extends State<Part3Screen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Progress
+            LinearProgressIndicator(
+              value: (_qIndex + 1) / _part3Questions.length,
+              backgroundColor: AppColors.darkCard,
+              valueColor: const AlwaysStoppedAnimation(AppColors.accentOrange),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            const SizedBox(height: 6),
+            Text('Question ${_qIndex + 1} of ${_part3Questions.length}',
+                style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+            const SizedBox(height: 16),
+
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
@@ -78,22 +140,59 @@ class _Part3ScreenState extends State<Part3Screen> {
                 ),
                 child: Text(_aiFeedback!, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.5)),
               ).animate().fadeIn(duration: 300.ms),
+
+            Row(
+              children: [
+                Text('Your Response', style: Theme.of(context).textTheme.titleMedium),
+                const Spacer(),
+                GestureDetector(
+                  onTap: _toggleMic,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _isRecording ? AppColors.accent : AppColors.primary.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _isRecording ? AppColors.accent : AppColors.primary.withOpacity(0.4)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(_isRecording ? Icons.stop : Icons.mic, size: 16, color: _isRecording ? Colors.white : AppColors.primary),
+                        const SizedBox(width: 6),
+                        Text(
+                          _isRecording ? 'Listening...' : 'Speak Answer',
+                          style: TextStyle(
+                            color: _isRecording ? Colors.white : AppColors.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
             Container(
               decoration: BoxDecoration(
                 color: AppColors.darkCard,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.darkBorder),
+                border: Border.all(color: _isRecording ? AppColors.accent : AppColors.darkBorder),
               ),
               child: TextField(
                 controller: _controller,
                 maxLines: 6,
                 style: const TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(
-                  hintText: 'Discuss your ideas here…',
-                  hintStyle: TextStyle(color: AppColors.textMuted),
+                decoration: InputDecoration(
+                  hintText: _isRecording ? '🎙️ Listening... Speak your thoughts clearly!' : 'Discuss your ideas here or tap Speak…',
+                  hintStyle: TextStyle(color: _isRecording ? AppColors.accent : AppColors.textMuted),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.all(16),
+                  contentPadding: const EdgeInsets.all(16),
                 ),
+                onChanged: (val) {
+                  if (_isRecording) _stopMicOnly();
+                },
               ),
             ),
             const SizedBox(height: 16),
@@ -139,21 +238,46 @@ class _Part3ScreenState extends State<Part3Screen> {
   }
 
   void _next() {
+    _stopMicOnly();
     final text = _controller.text.trim();
+    if (text.isNotEmpty) {
+      _qa.add({'q': _part3Questions[_qIndex % _part3Questions.length], 'a': text});
+    }
     _controller.clear();
-    if (_qIndex >= _part3Questions.length - 1 || text.isNotEmpty) {
-      final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
-      final analysis = SpeakingAnalysis(
-        transcript: text,
-        durationSeconds: (words / 2.2).clamp(0.0, 120.0),
-        fillerCount: RegExp(r'\b(um|uh|er|like)\b', caseSensitive: false).allMatches(text).length,
-      );
-      context.go('/ielts/result', extra: analysis);
+
+    if (_qIndex >= _part3Questions.length - 1) {
+      _finishTest();
     } else {
-      setState(() { _qIndex++; _aiFeedback = null; });
+      setState(() {
+        _qIndex++;
+        _aiFeedback = null;
+      });
     }
   }
 
+  void _finishTest() {
+    _stopMicOnly();
+    final text = _controller.text.trim();
+    if (text.isNotEmpty) {
+      _qa.add({'q': _part3Questions[_qIndex % _part3Questions.length], 'a': text});
+    }
+    final allText = _qa.map((e) => e['a']).join(' ').trim();
+    final elapsed = DateTime.now().difference(_testStartTime).inSeconds.toDouble();
+    final words = allText.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    final analysis = SpeakingAnalysis(
+      transcript: allText,
+      durationSeconds: elapsed > 5 ? elapsed : (words / 2.2).clamp(0.0, 180.0),
+      fillerCount: RegExp(r'\b(um|uh|er|like)\b', caseSensitive: false).allMatches(allText).length,
+      averageWordConfidence: NativeSttService.instance.lastConfidence,
+    );
+    context.go('/ielts/result', extra: analysis);
+  }
+
   @override
-  void dispose() { _controller.dispose(); super.dispose(); }
+  void dispose() {
+    _stopMicOnly();
+    _controller.dispose();
+    super.dispose();
+  }
 }
+

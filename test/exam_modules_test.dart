@@ -78,4 +78,67 @@ void main() {
       expect(restored.part, 'part2');
     });
   });
+
+  group('TOEFL Evaluator Tests', () {
+    test('Handles zero speech safely', () {
+      const empty = SpeakingAnalysis(transcript: '', durationSeconds: 0.0);
+      final eval = ToeflEvaluator.instance.evaluate(empty);
+      expect(eval.overallScore, 0);
+      expect(eval.deliveryScore, 0.0);
+    });
+
+    test('Scores fluent response accurately on 0-30 scale', () {
+      const speech = SpeakingAnalysis(
+        transcript: 'I strongly prefer studying in groups because collaboration allows students to share diverse perspectives and solve complex problems. For example, during exam prep, group discussions help clarify difficult topics.',
+        durationSeconds: 25.0,
+        averageWordConfidence: 0.92,
+      );
+      final eval = ToeflEvaluator.instance.evaluate(speech);
+      expect(eval.overallScore, greaterThanOrEqualTo(20));
+      expect(eval.overallScore, lessThanOrEqualTo(30));
+      expect(eval.criteria.length, 3);
+    });
+  });
+
+  group('PTE Academic Evaluator Tests', () {
+    test('Handles zero speech safely with baseline 10 score', () {
+      const empty = SpeakingAnalysis(transcript: '', durationSeconds: 0.0);
+      final eval = PteEvaluator.instance.evaluate(empty);
+      expect(eval.overallScore, 10);
+      expect(eval.oralFluency, 10);
+    });
+
+    test('Scores Read Aloud matching prompt on 10-90 scale', () {
+      const prompt = 'Market research plays a critical role in evaluating consumer preferences.';
+      const speech = SpeakingAnalysis(
+        transcript: 'Market research plays a critical role in evaluating consumer preferences.',
+        durationSeconds: 6.0,
+        averageWordConfidence: 0.95,
+      );
+      final eval = PteEvaluator.instance.evaluate(speech, expectedPrompt: prompt);
+      expect(eval.overallScore, greaterThanOrEqualTo(65));
+      expect(eval.overallScore, lessThanOrEqualTo(90));
+    });
+  });
+
+  group('Duolingo English Test (DET) Evaluator Tests', () {
+    test('Handles zero speech safely with baseline 10 score', () {
+      const empty = SpeakingAnalysis(transcript: '', durationSeconds: 0.0);
+      final eval = DetEvaluator.instance.evaluate(empty);
+      expect(eval.overallScore, 10);
+    });
+
+    test('Scores descriptive response accurately on 10-160 scale', () {
+      const speech = SpeakingAnalysis(
+        transcript: 'The image illustrates students collaborating in a modern library. Furthermore, the atmosphere appears focused and productive.',
+        durationSeconds: 15.0,
+        averageWordConfidence: 0.90,
+      );
+      final eval = DetEvaluator.instance.evaluate(speech);
+      expect(eval.overallScore, greaterThanOrEqualTo(70));
+      expect(eval.overallScore, lessThanOrEqualTo(160));
+      expect(eval.overallScore % 5, 0); // 5-point increment
+    });
+  });
 }
+

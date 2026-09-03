@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../app/theme.dart';
 import '../../core/services/ai_session_manager.dart';
 import '../../core/services/ielts_evaluator.dart';
+import '../../core/services/stt_service.dart';
 
 const _cueCards = [
   _CueCard('Describe a person who has influenced you',
@@ -37,46 +39,93 @@ class _Part2ScreenState extends State<Part2Screen> {
   int _speakSeconds = 120;
   Timer? _timer;
   final _notesController = TextEditingController();
+  final _transcriptController = TextEditingController();
   late _CueCard _card;
   String? _aiFeedback;
+  bool _isRecording = false;
 
   @override
   void initState() {
     super.initState();
     _card = _cueCards[DateTime.now().second % _cueCards.length];
+    _startPrep();
   }
 
   void _startPrep() {
+    _stopMicOnly();
     setState(() => _phase = _Phase.prep);
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_prepSeconds <= 1) { t.cancel(); _startSpeaking(); }
       else setState(() => _prepSeconds--);
     });
   }
 
-  void _startSpeaking() {
+  Future<void> _startSpeaking() async {
+    _timer?.cancel();
     setState(() { _phase = _Phase.speaking; _speakSeconds = 120; });
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (_speakSeconds <= 1) { t.cancel(); _done(); }
+      // Count down to 0 so a full 120s attempt is recorded as 120s, not 119s.
+      if (_speakSeconds <= 0) { t.cancel(); _done(); }
       else setState(() => _speakSeconds--);
     });
+    await _startRecording();
+  }
+
+  Future<void> _startRecording() async {
+    final status = await Permission.microphone.status;
+    if (status.isDenied || status.isPermanentlyDenied) {
+      final res = await Permission.microphone.request();
+      if (!res.isGranted) return;
+    }
+
+    setState(() => _isRecording = true);
+    await NativeSttService.instance.listen(
+      onResult: (text) {
+        if (mounted && _isRecording) {
+          setState(() {
+            _transcriptController.text = text;
+          });
+        }
+      },
+    );
+  }
+
+  Future<void> _stopMicOnly() async {
+    if (!_isRecording) return;
+    // Guard setState so this is safe to call from dispose() too.
+    if (mounted) setState(() => _isRecording = false);
+    _isRecording = false;
+    await NativeSttService.instance.stop();
+  }
+
+  Future<void> _toggleMic() async {
+    if (_isRecording) {
+      await _stopMicOnly();
+    } else {
+      await _startRecording();
+    }
   }
 
   void _done() {
+    _timer?.cancel();
+    _stopMicOnly();
     setState(() => _phase = _Phase.done);
     _getAiFeedback();
   }
 
   Future<void> _getAiFeedback() async {
+    final text = _transcriptController.text.trim().isNotEmpty
+        ? _transcriptController.text.trim()
+        : _notesController.text.trim();
     final feedback = await AISessionManager.instance.executeChat(
-      'Give brief IELTS Part 2 speaking feedback for topic: ${_card.topic}. Focus on structure and timing.',
+      'Give brief IELTS Part 2 speaking feedback for topic: "${_card.topic}". Spoken response: "$text". Focus on structure and timing.',
       systemPrompt: 'You are an IELTS Speaking Examiner evaluating Part 2 Cue Cards.',
     );
     if (mounted) setState(() => _aiFeedback = feedback);
   }
 
   @override
-
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.darkBg,
@@ -122,14 +171,17 @@ class _Part2ScreenState extends State<Part2Screen> {
             // Timer
             _TimerWidget(phase: _phase, prepSeconds: _prepSeconds, speakSeconds: _speakSeconds),
             const SizedBox(height: 20),
-            // Notes area (prep phase)
-            if (_phase != _Phase.done) ...[              
+
+            // Prep Phase Notes Area
+            if (_phase == _Phase.prep) ...[
+              Text('Preparation Notes', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
               TextField(
                 controller: _notesController,
                 maxLines: 4,
                 style: const TextStyle(color: AppColors.textPrimary),
                 decoration: InputDecoration(
-                  hintText: 'Preparation notes…',
+                  hintText: 'Jot down keywords and bullet points…',
                   hintStyle: const TextStyle(color: AppColors.textMuted),
                   filled: true,
                   fillColor: AppColors.darkCard,
@@ -138,29 +190,90 @@ class _Part2ScreenState extends State<Part2Screen> {
                     borderSide: const BorderSide(color: AppColors.darkBorder),
                   ),
                 ),
+                onChanged: (val) {
+                  if (_isRecording) _stopMicOnly();
+                },
               ),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _phase == _Phase.prep ? null
-                      : _phase == _Phase.speaking ? _done : _startPrep,
-                  child: Text(_phase == _Phase.speaking ? 'Stop Speaking' : 'Start (1 min prep)'),
+                child: ElevatedButton.icon(
+                  onPressed: _startSpeaking,
+                  icon: const Icon(Icons.mic),
+                  label: const Text('Start Speaking (Skip prep)'),
                 ),
               ),
-              if (_phase == _Phase.prep)
-                const SizedBox(height: 8),
-              if (_phase == _Phase.prep)
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: _startSpeaking,
-                    child: const Text('Skip prep — Start speaking now'),
-                  ),
-                ),
             ],
-            // AI Feedback
-            if (_phase == _Phase.done) ...[              
+
+            // Speaking Phase Live Speech Box
+            if (_phase == _Phase.speaking) ...[
+              Row(
+                children: [
+                  Text('Spoken Transcript', style: Theme.of(context).textTheme.titleMedium),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: _toggleMic,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _isRecording ? AppColors.accent : AppColors.primary.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: _isRecording ? AppColors.accent : AppColors.primary.withOpacity(0.4)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(_isRecording ? Icons.stop : Icons.mic, size: 16, color: _isRecording ? Colors.white : AppColors.primary),
+                          const SizedBox(width: 6),
+                          Text(
+                            _isRecording ? 'Recording...' : 'Resume Mic',
+                            style: TextStyle(
+                              color: _isRecording ? Colors.white : AppColors.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.darkCard,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: _isRecording ? AppColors.accent : AppColors.darkBorder),
+                ),
+                child: TextField(
+                  controller: _transcriptController,
+                  maxLines: 5,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: InputDecoration(
+                    hintText: _isRecording ? '🎙️ Speaking now... Your words appear here in real time.' : 'Speak your answer or type here…',
+                    hintStyle: TextStyle(color: _isRecording ? AppColors.accent : AppColors.textMuted),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.all(16),
+                  ),
+                  onChanged: (val) {
+                    if (_isRecording) _stopMicOnly();
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _done,
+                  icon: const Icon(Icons.stop),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
+                  label: const Text('Stop & Evaluate'),
+                ),
+              ),
+            ],
+
+            // Done / Feedback Phase
+            if (_phase == _Phase.done) ...[
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
@@ -184,17 +297,19 @@ class _Part2ScreenState extends State<Part2Screen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    final notes = _notesController.text.trim();
-                    final words = notes.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
-                    final spokenDuration = 120 - _speakSeconds;
+                    final spokenText = _transcriptController.text.trim().isNotEmpty
+                        ? _transcriptController.text.trim()
+                        : _notesController.text.trim();
+                    final spokenDuration = (120 - _speakSeconds).clamp(5, 120).toDouble();
                     final analysis = SpeakingAnalysis(
-                      transcript: notes,
-                      durationSeconds: spokenDuration > 0 ? spokenDuration.toDouble() : (words / 2.2).clamp(0.0, 120.0),
-                      fillerCount: RegExp(r'\b(um|uh|er|like)\b', caseSensitive: false).allMatches(notes).length,
+                      transcript: spokenText,
+                      durationSeconds: spokenDuration,
+                      fillerCount: RegExp(r'\b(um|uh|er|like)\b', caseSensitive: false).allMatches(spokenText).length,
+                      averageWordConfidence: NativeSttService.instance.lastConfidence,
                     );
                     context.go('/ielts/result', extra: analysis);
                   },
-                  child: const Text('View Full Results'),
+                  child: const Text('View Full Score Report →'),
                 ),
               ),
             ],
@@ -206,7 +321,12 @@ class _Part2ScreenState extends State<Part2Screen> {
   }
 
   @override
-  void dispose() { _timer?.cancel(); _notesController.dispose(); super.dispose(); }
+  void dispose() {
+    _timer?.cancel();
+    _notesController.dispose();
+    _transcriptController.dispose();
+    super.dispose();
+  }
 }
 
 class _TimerWidget extends StatelessWidget {

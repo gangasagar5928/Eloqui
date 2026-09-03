@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../app/theme.dart';
 import '../../core/services/grammar_service.dart';
+import '../../core/services/stt_service.dart';
 
 class PronunciationScreen extends StatefulWidget {
   const PronunciationScreen({super.key});
@@ -12,10 +14,44 @@ class PronunciationScreen extends StatefulWidget {
 class _PronunciationScreenState extends State<PronunciationScreen> {
   final _controller = TextEditingController();
   bool _analyzed = false;
+  bool _isRecording = false;
   int _fillerCount = 0;
   double _score = 0;
 
+  Future<void> _stopMicOnly() async {
+    if (!_isRecording) return;
+    // Guard setState so this is safe to call from dispose() too.
+    if (mounted) setState(() => _isRecording = false);
+    _isRecording = false;
+    await NativeSttService.instance.stop();
+  }
+
+  Future<void> _toggleMic() async {
+    if (_isRecording) {
+      await _stopMicOnly();
+    } else {
+      final status = await Permission.microphone.status;
+      if (status.isDenied || status.isPermanentlyDenied) {
+        final res = await Permission.microphone.request();
+        if (!res.isGranted) return;
+      }
+
+      setState(() => _isRecording = true);
+      await NativeSttService.instance.listen(
+        onResult: (text) {
+          if (mounted && _isRecording) {
+            setState(() {
+              _controller.text = text;
+              _controller.selection = TextSelection.fromPosition(TextPosition(offset: text.length));
+            });
+          }
+        },
+      );
+    }
+  }
+
   void _analyze() {
+    _stopMicOnly();
     final text = _controller.text;
     final fillers = RegExp(r'\b(um|uh|er|ah|like|you know)\b', caseSensitive: false).allMatches(text).length;
     final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
@@ -44,28 +80,65 @@ class _PronunciationScreenState extends State<PronunciationScreen> {
                 children: [
                   Text('🗣 Pronunciation Analyzer', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18)),
                   SizedBox(height: 6),
-                  Text('Paste or type your speech transcript to analyze fluency, fillers, and score.',
+                  Text('Speak or paste your speech transcript to analyze fluency, fillers, and score.',
                       style: TextStyle(color: Colors.white70, fontSize: 13)),
                 ],
               ),
             ).animate().fadeIn(duration: 400.ms),
             const SizedBox(height: 20),
+
+            Row(
+              children: [
+                Text('Speech Transcript', style: Theme.of(context).textTheme.titleMedium),
+                const Spacer(),
+                GestureDetector(
+                  onTap: _toggleMic,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _isRecording ? AppColors.accent : AppColors.secondary.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _isRecording ? AppColors.accent : AppColors.secondary.withOpacity(0.4)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(_isRecording ? Icons.stop : Icons.mic, size: 16, color: _isRecording ? Colors.white : AppColors.secondary),
+                        const SizedBox(width: 6),
+                        Text(
+                          _isRecording ? 'Recording...' : 'Speak Now',
+                          style: TextStyle(
+                            color: _isRecording ? Colors.white : AppColors.secondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
             Container(
               decoration: BoxDecoration(
                 color: AppColors.darkCard,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.darkBorder),
+                border: Border.all(color: _isRecording ? AppColors.accent : AppColors.darkBorder),
               ),
               child: TextField(
                 controller: _controller,
                 maxLines: 6,
                 style: const TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(
-                  hintText: 'Paste your speech transcript here…',
-                  hintStyle: TextStyle(color: AppColors.textMuted),
+                decoration: InputDecoration(
+                  hintText: _isRecording ? '🎙️ Listening... Speak your speech clearly.' : 'Speak or paste your speech transcript here…',
+                  hintStyle: TextStyle(color: _isRecording ? AppColors.accent : AppColors.textMuted),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.all(16),
+                  contentPadding: const EdgeInsets.all(16),
                 ),
+                onChanged: (val) {
+                  if (_isRecording) _stopMicOnly();
+                },
               ),
             ),
             const SizedBox(height: 14),
@@ -115,7 +188,11 @@ class _PronunciationScreenState extends State<PronunciationScreen> {
   }
 
   @override
-  void dispose() { _controller.dispose(); super.dispose(); }
+  void dispose() {
+    _stopMicOnly();
+    _controller.dispose();
+    super.dispose();
+  }
 }
 
 class _ScoreRing extends StatelessWidget {

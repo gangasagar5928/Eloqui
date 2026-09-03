@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../app/theme.dart';
 import '../../core/services/grammar_service.dart';
+import '../../core/services/stt_service.dart';
 import '../../core/database/db_helper.dart';
 import 'package:uuid/uuid.dart';
 
@@ -16,8 +18,42 @@ class _GrammarScreenState extends State<GrammarScreen> {
   List<GrammarCorrection> _corrections = [];
   String _corrected = '';
   bool _analyzed = false;
+  bool _isRecording = false;
+
+  Future<void> _stopMicOnly() async {
+    if (!_isRecording) return;
+    // Guard setState so this is safe to call from dispose() too.
+    if (mounted) setState(() => _isRecording = false);
+    _isRecording = false;
+    await NativeSttService.instance.stop();
+  }
+
+  Future<void> _toggleMic() async {
+    if (_isRecording) {
+      await _stopMicOnly();
+    } else {
+      final status = await Permission.microphone.status;
+      if (status.isDenied || status.isPermanentlyDenied) {
+        final res = await Permission.microphone.request();
+        if (!res.isGranted) return;
+      }
+
+      setState(() => _isRecording = true);
+      await NativeSttService.instance.listen(
+        onResult: (text) {
+          if (mounted && _isRecording) {
+            setState(() {
+              _controller.text = text;
+              _controller.selection = TextSelection.fromPosition(TextPosition(offset: text.length));
+            });
+          }
+        },
+      );
+    }
+  }
 
   Future<void> _check() async {
+    await _stopMicOnly();
     final text = _controller.text.trim();
     if (text.isEmpty) return;
     final corrections = await GrammarService.instance.analyzeHybrid(text: text);
@@ -37,6 +73,7 @@ class _GrammarScreenState extends State<GrammarScreen> {
         'created_at': DateTime.now().millisecondsSinceEpoch,
       });
     }
+    if (!mounted) return;
     setState(() { _corrections = corrections; _corrected = corrected; _analyzed = true; });
   }
 
@@ -67,22 +104,59 @@ class _GrammarScreenState extends State<GrammarScreen> {
               ),
             ).animate().fadeIn(duration: 400.ms),
             const SizedBox(height: 20),
+
+            Row(
+              children: [
+                Text('Input Text', style: Theme.of(context).textTheme.titleMedium),
+                const Spacer(),
+                GestureDetector(
+                  onTap: _toggleMic,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _isRecording ? AppColors.accent : AppColors.accentOrange.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _isRecording ? AppColors.accent : AppColors.accentOrange.withOpacity(0.4)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(_isRecording ? Icons.stop : Icons.mic, size: 16, color: _isRecording ? Colors.white : AppColors.accentOrange),
+                        const SizedBox(width: 6),
+                        Text(
+                          _isRecording ? 'Recording...' : 'Speak Text',
+                          style: TextStyle(
+                            color: _isRecording ? Colors.white : AppColors.accentOrange,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
             Container(
               decoration: BoxDecoration(
                 color: AppColors.darkCard,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.darkBorder),
+                border: Border.all(color: _isRecording ? AppColors.accent : AppColors.darkBorder),
               ),
               child: TextField(
                 controller: _controller,
                 maxLines: 5,
                 style: const TextStyle(color: AppColors.textPrimary, height: 1.6),
-                decoration: const InputDecoration(
-                  hintText: 'Type or paste your text here…',
-                  hintStyle: TextStyle(color: AppColors.textMuted),
+                decoration: InputDecoration(
+                  hintText: _isRecording ? '🎙️ Speaking... Text appears in real time.' : 'Type, paste, or speak your text here…',
+                  hintStyle: TextStyle(color: _isRecording ? AppColors.accent : AppColors.textMuted),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.all(16),
+                  contentPadding: const EdgeInsets.all(16),
                 ),
+                onChanged: (val) {
+                  if (_isRecording) _stopMicOnly();
+                },
               ),
             ),
             const SizedBox(height: 12),
@@ -131,7 +205,11 @@ class _GrammarScreenState extends State<GrammarScreen> {
   }
 
   @override
-  void dispose() { _controller.dispose(); super.dispose(); }
+  void dispose() {
+    _stopMicOnly();
+    _controller.dispose();
+    super.dispose();
+  }
 }
 
 class _NoErrorsCard extends StatelessWidget {
