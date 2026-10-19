@@ -2,7 +2,7 @@ class SsmlTagBuilder {
   static String wrapWithProsody(String text, {double rate = 1.0, double pitch = 1.0}) {
     final ratePercent = (rate * 100).round();
     final pitchPercent = (pitch * 100).round();
-    return '<prosody rate="${ratePercent}%" pitch="${pitchPercent}%">$text</prosody>';
+    return '<prosody rate="$ratePercent%" pitch="$pitchPercent%">$text</prosody>';
   }
 
   static String addBreak(int milliseconds) {
