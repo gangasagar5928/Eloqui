@@ -87,7 +87,6 @@ void main() {
         piperVoiceFilename: 'piper.onnx',
         tokenizerFilename: 'tokenizer.json',
         sha256Checksum: 'dummy_hash',
-        digitalSignatureRsa: 'SIG_TEST',
         totalSizeBytes: 1024,
       );
 
@@ -95,7 +94,27 @@ void main() {
       final restored = ModelBundleManifest.fromJson(jsonMap);
 
       expect(restored.packId, 'test_pack');
-      expect(restored.digitalSignatureRsa, 'SIG_TEST');
+      expect(restored.sha256Checksum, 'dummy_hash');
+      // No digital-signature field exists: integrity is checksum-only.
+      expect(jsonMap.containsKey('digitalSignatureRsa'), isFalse);
+    });
+
+    test('verifyBundleIntegrity fails closed without a trusted checksum', () async {
+      final dir = await Directory.systemTemp.createTemp('eloqui_test');
+      final file = File('${dir.path}/bundle.bin');
+      await file.writeAsString('eloqui-integrity-test');
+      final mgr = DownloadManager.instance;
+
+      // Missing/blank trusted checksum never verifies (no fake bypass).
+      expect(await mgr.verifyBundleIntegrity(file, ''), isFalse);
+      expect(await mgr.verifyBundleIntegrity(file, '   '), isFalse);
+      // Mismatched checksum fails.
+      expect(await mgr.verifyBundleIntegrity(file, 'deadbeef'), isFalse);
+      // A real SHA-256 round-trips.
+      final digest = await mgr.sha256Of(file);
+      expect(await mgr.verifyBundleIntegrity(file, digest), isTrue);
+
+      await dir.delete(recursive: true);
     });
   });
 }
