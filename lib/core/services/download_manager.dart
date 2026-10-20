@@ -41,7 +41,6 @@ class ModelBundleManifest {
   final String piperVoiceFilename;
   final String tokenizerFilename;
   final String sha256Checksum;
-  final String digitalSignatureRsa; // 1. RSA Digital Signature for authentic model bundles
   final QuantizationLevel quantization;
   final PackCategory category;
   final int totalSizeBytes;
@@ -55,7 +54,6 @@ class ModelBundleManifest {
     required this.piperVoiceFilename,
     required this.tokenizerFilename,
     required this.sha256Checksum,
-    required this.digitalSignatureRsa,
     this.quantization = QuantizationLevel.Q4_K_M,
     this.category = PackCategory.ielts,
     required this.totalSizeBytes,
@@ -70,7 +68,6 @@ class ModelBundleManifest {
         piperVoiceFilename: json['piperVoiceFilename'] ?? 'en_IN_piper.onnx',
         tokenizerFilename: json['tokenizerFilename'] ?? 'tokenizer.json',
         sha256Checksum: json['sha256Checksum'] ?? '',
-        digitalSignatureRsa: json['digitalSignatureRsa'] ?? 'SIG_OFFICIAL_ELOQUI_RSA2048_VERIFIED',
         totalSizeBytes: json['totalSizeBytes'] ?? 2147483648,
       );
 
@@ -83,7 +80,6 @@ class ModelBundleManifest {
         'piperVoiceFilename': piperVoiceFilename,
         'tokenizerFilename': tokenizerFilename,
         'sha256Checksum': sha256Checksum,
-        'digitalSignatureRsa': digitalSignatureRsa,
         'totalSizeBytes': totalSizeBytes,
       };
 }
@@ -102,23 +98,31 @@ class DownloadManager {
     return modelDir;
   }
 
-  /// 1. Verify SHA-256 Checksum & RSA Digital Signature
-  Future<bool> verifyBundleIntegrity(File file, String expectedSha256, String signatureRsa) async {
-    if (!await file.exists()) return false;
-
-    final signatureValid = signatureRsa.startsWith('SIG_OFFICIAL');
-    if (!signatureValid) return false;
-
-    if (expectedSha256.isEmpty) return true;
-
+  /// Compute the lowercase SHA-256 hex digest of a file.
+  Future<String> sha256Of(File file) async {
     final bytes = await file.readAsBytes();
-    final digest = sha256.convert(bytes);
-    final checksumMatches = digest.toString().toLowerCase() == expectedSha256.toLowerCase();
-
-    return checksumMatches;
+    return sha256.convert(bytes).toString();
   }
 
-  /// Record verified download in SQLite
+  /// Verify a downloaded bundle against a trusted SHA-256 checksum.
+  ///
+  /// Returns true ONLY when a non-empty trusted checksum was supplied AND it
+  /// matches the file. There is deliberately no "digital signature" check
+  /// here: real signature verification is not implemented in this build, so
+  /// no signature string is ever treated as proof of authenticity. A missing
+  /// trusted checksum fails closed (returns false), never passes.
+  Future<bool> verifyBundleIntegrity(File file, String trustedSha256) async {
+    if (!await file.exists()) return false;
+
+    final expected = trustedSha256.trim();
+    if (expected.isEmpty) return false;
+
+    final digest = await sha256Of(file);
+    return digest.toLowerCase() == expected.toLowerCase();
+  }
+
+  /// Record a completed download in SQLite. [isVerified] must be the result of
+  /// real integrity checking (see [verifyBundleIntegrity]) — never assumed.
   Future<void> recordVerifiedDownload({
     required ModelBundleManifest manifest,
     required String filePath,
@@ -179,6 +183,7 @@ class DownloadManager {
     required String packId,
     required String packName,
     required String url,
+    String? trustedSha256,
   }) async {
     if (isDownloading) return;
 
@@ -278,15 +283,20 @@ class DownloadManager {
         whisperFilename: 'whisper_base.bin',
         piperVoiceFilename: 'en_IN_piper.onnx',
         tokenizerFilename: 'tokenizer.json',
-        sha256Checksum: '',
-        digitalSignatureRsa: 'SIG_OFFICIAL_ELOQUI_RSA2048_VERIFIED',
+        sha256Checksum: trustedSha256 ?? '',
         totalSizeBytes: await finalFile.length(),
       );
+
+      // Honest integrity check: the bundle is only recorded as "verified" when
+      // a non-empty trusted checksum was supplied AND it matches what we
+      // actually downloaded. Without a trusted checksum the download records
+      // as unverified — the app must not claim authenticity it never checked.
+      final isVerified = await verifyBundleIntegrity(finalFile, manifest.sha256Checksum);
 
       await recordVerifiedDownload(
         manifest: manifest,
         filePath: finalPath,
-        isVerified: true,
+        isVerified: isVerified,
       );
 
       _updateStatus(DownloadStatus(
