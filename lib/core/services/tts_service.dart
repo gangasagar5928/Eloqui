@@ -24,7 +24,9 @@ class TTSService {
   Future<void> speak(String text, {Function(String word)? onWordSpoken}) async {
     if (text.trim().isEmpty) return;
     _isSpeaking = true;
-    CrashLogger.instance.log('TTS Speaking (Accent: $_accent, Speed: $_speed): $text');
+    // Log the TTS event but not the text being spoken — it can embed the
+    // user's conversation content, and crash logs are surfaced in the UI.
+    CrashLogger.instance.log('TTS Speaking (Accent: $_accent, Speed: $_speed)');
 
     if (_bridge.isNativeAvailable) {
       _bridge.piperSynthesize(text, 'output_temp.wav', speed: _speed);
