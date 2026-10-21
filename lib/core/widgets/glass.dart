@@ -4,6 +4,7 @@
 /// specular highlights, springy press feedback and a floating glass nav bar.
 library;
 
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -42,6 +43,12 @@ class AmbientBackground extends StatefulWidget {
 class _AmbientBackgroundState extends State<AmbientBackground>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c;
+  // The orbs are frozen while anything scrolls so the full-screen gradients
+  // aren't re-rasterized every scroll frame (the dominant cause of the 5-7 FPS
+  // scroll jank). A single discrete timer defers the resume: any new scroll
+  // activity resets it, and it self-heals when a scroll never fires its
+  // matching end notification (e.g. a route pops mid-fling).
+  Timer? _idleTimer;
 
   @override
   void initState() {
@@ -54,8 +61,24 @@ class _AmbientBackgroundState extends State<AmbientBackground>
 
   @override
   void dispose() {
+    _idleTimer?.cancel();
     _c.dispose();
     super.dispose();
+  }
+
+  bool _onScrollNotification(ScrollNotification notification) {
+    if (notification is ScrollStartNotification) {
+      // Freeze the orbs at their current position while the scroll is live.
+      _c.stop();
+    }
+    // Every notification (drag, fling, or momentum) pushes the resume back;
+    // when everything is quiet for a moment the drift resumes.
+    _idleTimer?.cancel();
+    _idleTimer = Timer(const Duration(milliseconds: 400), () {
+      if (!_c.isAnimating) _c.repeat();
+    });
+    // Never absorb the notification; other listeners need it.
+    return false;
   }
 
   @override
@@ -71,40 +94,44 @@ class _AmbientBackgroundState extends State<AmbientBackground>
         // Base wash
         Container(color: base),
 
-        // Drifting orbs
-        AnimatedBuilder(
-          animation: _c,
-          builder: (context, _) {
-            final t = _c.value;
-            return Stack(
-              children: [
-                _Orb(
-                  size: size.width * 1.15,
-                  x: size.width * (0.5 + 0.42 * math.sin(t * 2 * math.pi)),
-                  y: size.height * (0.12 + 0.18 * math.sin(t * 2 * math.pi + 1.3)),
-                  colors: const [GlassColors.primary, GlassColors.violet],
-                ),
-                _Orb(
-                  size: size.width * 1.0,
-                  x: size.width * (0.85 + 0.30 * math.sin(t * 2 * math.pi + 2.1)),
-                  y: size.height * (0.55 + 0.22 * math.sin(t * 2 * math.pi + 0.6)),
-                  colors: const [GlassColors.cyan, GlassColors.teal],
-                ),
-                _Orb(
-                  size: size.width * 1.2,
-                  x: size.width * (0.2 + 0.35 * math.sin(t * 2 * math.pi + 4.2)),
-                  y: size.height * (0.85 + 0.15 * math.sin(t * 2 * math.pi + 2.8)),
-                  colors: const [GlassColors.magenta, GlassColors.rose],
-                ),
-                _Orb(
-                  size: size.width * 0.9,
-                  x: size.width * (0.6 + 0.4 * math.sin(t * 2 * math.pi + 5.0)),
-                  y: size.height * (0.3 + 0.25 * math.sin(t * 2 * math.pi + 3.5)),
-                  colors: const [GlassColors.amber, GlassColors.rose],
-                ),
-              ],
-            );
-          },
+        // Drifting orbs. Wrapped in a RepaintBoundary so that when the
+        // animation is frozen during a scroll the compositor reuses the cached
+        // orb layer instead of re-painting it on every frame.
+        RepaintBoundary(
+          child: AnimatedBuilder(
+            animation: _c,
+            builder: (context, _) {
+              final t = _c.value;
+              return Stack(
+                children: [
+                  _Orb(
+                    size: size.width * 1.15,
+                    x: size.width * (0.5 + 0.42 * math.sin(t * 2 * math.pi)),
+                    y: size.height * (0.12 + 0.18 * math.sin(t * 2 * math.pi + 1.3)),
+                    colors: const [GlassColors.primary, GlassColors.violet],
+                  ),
+                  _Orb(
+                    size: size.width * 1.0,
+                    x: size.width * (0.85 + 0.30 * math.sin(t * 2 * math.pi + 2.1)),
+                    y: size.height * (0.55 + 0.22 * math.sin(t * 2 * math.pi + 0.6)),
+                    colors: const [GlassColors.cyan, GlassColors.teal],
+                  ),
+                  _Orb(
+                    size: size.width * 1.2,
+                    x: size.width * (0.2 + 0.35 * math.sin(t * 2 * math.pi + 4.2)),
+                    y: size.height * (0.85 + 0.15 * math.sin(t * 2 * math.pi + 2.8)),
+                    colors: const [GlassColors.magenta, GlassColors.rose],
+                  ),
+                  _Orb(
+                    size: size.width * 0.9,
+                    x: size.width * (0.6 + 0.4 * math.sin(t * 2 * math.pi + 5.0)),
+                    y: size.height * (0.3 + 0.25 * math.sin(t * 2 * math.pi + 3.5)),
+                    colors: const [GlassColors.amber, GlassColors.rose],
+                  ),
+                ],
+              );
+            },
+          ),
         ),
 
         // Subtle grain / vignette for depth
@@ -124,7 +151,12 @@ class _AmbientBackgroundState extends State<AmbientBackground>
           ),
         ),
 
-        widget.child,
+        // The app content. Catching scroll notifications lets us freeze the
+        // orbs while the user scrolls (see _onScrollNotification).
+        NotificationListener<ScrollNotification>(
+          onNotification: _onScrollNotification,
+          child: widget.child,
+        ),
       ],
     );
   }
@@ -182,7 +214,10 @@ class GlassSurface extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(16),
     this.borderRadius = 22,
-    this.blur = 22,
+    // Kept deliberately low: BackdropFilter cost grows steeply with sigma and
+    // in-flow cards run one per frame during scroll. On soft gradient backdrops
+    // the difference vs. a heavy blur is barely perceptible.
+    this.blur = 0,
     this.tint = GlassColors.glassTint,
     this.borderColor,
     this.boxShadow,
@@ -192,59 +227,66 @@ class GlassSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(borderRadius);
-    return ClipRRect(
-      borderRadius: radius,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            gradient: gradient ??
-                LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [tint, tint.withValues(alpha: tint.a * 0.55)],
-                ),
-            border: Border.all(
-              color: borderColor ?? GlassColors.glassStroke,
-              width: 1,
+    // When blur > 0, apply a real-time BackdropFilter (expensive per-frame).
+    // The default is 0 — static glass — so in-flow cards (stat chips, quick
+    // actions, practice scroll) don't pay the save-layer cost during scroll.
+    Widget content = DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        gradient: gradient ??
+            LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [tint, tint.withValues(alpha: tint.a * 0.55)],
             ),
-            boxShadow: boxShadow ??
-                [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.25),
-                    blurRadius: 24,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-          ),
-          child: Stack(
-            children: [
-              // Specular highlight along the top edge.
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 1,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(borderRadius)),
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.white.withOpacity(0),
-                        GlassColors.glassStrokeTop,
-                        Colors.white.withOpacity(0),
-                      ],
-                    ),
-                  ),
+        border: Border.all(
+          color: borderColor ?? GlassColors.glassStroke,
+          width: 1,
+        ),
+        boxShadow: boxShadow ??
+            [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.25),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+            ],
+      ),
+      // Column + Expanded is a proper Flex layout: the 1px highlight bar is
+      // fixed height and the content fills the rest. The previous StackFit.expand
+      // caused the Scaffold body to collapse to zero height (only the nav bar
+      // was visible).
+      child: Column(
+        children: [
+          // Specular highlight along the top edge.
+          SizedBox(
+            height: 1,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(borderRadius)),
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.white.withOpacity(0),
+                    GlassColors.glassStrokeTop,
+                    Colors.white.withOpacity(0),
+                  ],
                 ),
               ),
-              Padding(padding: padding, child: child),
-            ],
+            ),
           ),
-        ),
+          Expanded(
+            child: Padding(padding: padding, child: child),
+          ),
+        ],
       ),
     );
+    if (blur > 0) {
+      content = BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        child: content,
+      );
+    }
+    return ClipRRect(borderRadius: radius, child: content);
   }
 }
 
@@ -257,6 +299,10 @@ class GlassCard extends StatefulWidget {
   final Color? glowColor;
   final List<Color>? accent; // optional liquid gradient wash
   final Gradient? gradient;
+  // In-flow cards stack up (9-12 per scroll screen), so keep the per-card
+  // blur cheap; hidden behind a translucent tint over soft orbs it reads the
+  // same while being far cheaper to re-blur each scroll frame.
+  final double blur;
 
   const GlassCard({
     super.key,
@@ -267,6 +313,7 @@ class GlassCard extends StatefulWidget {
     this.glowColor,
     this.accent,
     this.gradient,
+    this.blur = 0,
   });
 
   @override
@@ -320,6 +367,7 @@ class _GlassCardState extends State<GlassCard>
     Widget surface = GlassSurface(
       borderRadius: widget.borderRadius,
       padding: widget.padding,
+      blur: widget.blur,
       gradient: widget.gradient,
       boxShadow: glow != null
           ? [
