@@ -702,6 +702,7 @@ class _InputBarState extends State<_InputBar> {
                 child: Container(
                   width: 44,
                   height: 44,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: _isRecording ? AppColors.accent : AppColors.darkCard,
                     shape: BoxShape.circle,
