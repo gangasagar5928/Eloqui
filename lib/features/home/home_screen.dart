@@ -168,7 +168,6 @@ class _StatChip extends StatelessWidget {
       child: GlassSurface(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
         borderRadius: 18,
-        blur: 16,
         child: Column(
           children: [
             Text(emoji, style: const TextStyle(fontSize: 20)),
@@ -247,6 +246,7 @@ class _HeroCTA extends StatelessWidget {
                 Container(
                   width: 60,
                   height: 60,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.22),
                     borderRadius: BorderRadius.circular(20),
@@ -297,6 +297,7 @@ class _QuickActionsGrid extends StatelessWidget {
           glowColor: grad.colors.first.withOpacity(0.4),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
                 width: 46,
@@ -454,6 +455,7 @@ class _GlassIconButton extends StatelessWidget {
         child: Container(
           width: 40,
           height: 40,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.08),
             borderRadius: BorderRadius.circular(14),
