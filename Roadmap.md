@@ -129,3 +129,9 @@ On 4GB and 6GB Android devices, running Llama LLM (1.8 GB heap) and Whisper STT 
 - [x] **Adaptive Silence Thresholding**: Dynamic RMS energy floor calibration for noisy real-world speech dictation.
 - [x] **CEFR Collocation Scorer**: Automated detection and scoring bonus for advanced IELTS idiomatic expressions.
 - [x] **LRU Audio Cache Management**: Auto-eviction daemon keeping local recording footprint under 50 MB on mobile devices.
+
+## October 2026 Milestone Updates
+- [x] **SHA-256 Bundle Integrity Verification**: Enforce strict cryptographic checksum validation on downloaded model packs with zero-bypass policy.
+- [x] **Scroll-Optimized Liquid Glass (60 FPS)**: RepaintBoundary isolation and ambient drift freeze during momentum scrolling.
+- [x] **Privacy Diagnostics Shielding**: Sanitize TTS speaking event logs from crash logger to protect conversation privacy.
+- [x] **Responsive Glass Component Geometry**: Optical centering across hero CTAs, input bars, and onboarding logo containers.
