@@ -48,6 +48,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           Container(
             width: 120,
             height: 120,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               gradient: AppColors.gradientPrimary,
               borderRadius: BorderRadius.circular(32),
