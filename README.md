@@ -4,6 +4,7 @@
 [![Tests Passing](https://img.shields.io/badge/Tests-46%2F46%20Passing-brightgreen.svg)](test/)
 [![Flutter](https://img.shields.io/badge/Flutter-3.22+-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
 [![Engine](https://img.shields.io/badge/Inference-llama.cpp%20%7C%20whisper.cpp%20%7C%20piper-orange)](android/app/src/main/cpp/)
+[![Design](https://img.shields.io/badge/UI-Liquid%20Glass%20M3-8A2BE2)](lib/core/widgets/glass.dart)
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20Offline%20On--Device-success)](Roadmap.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -50,9 +51,16 @@ Eloqui solves this with a **Deterministic Sequential Lifecycle Pipeline** coordi
   - *Grammatical Range & Accuracy* (Clause complexity, rule-based mistake detection)
   - *Pronunciation & Acoustic Pace* (Acoustic token confidence, volume consistency)
 - 🎯 **Multi-Exam Support**: Specialized modules for **TOEFL iBT** (0–30), **PTE Academic** (10–90), and **Duolingo English Test (DET)** (10–160).
+- 💎 **Liquid Glass UI System (iOS / ColorOS 17 Style)**:
+  - Translucent glass surfaces with real-time specular highlights and spring physics.
+  - Ambient drifting gradient orbs isolated via `RepaintBoundary`.
+  - **Scroll-Freeze Performance Optimization**: Pauses background animations during scrolling to eliminate rasterization load, guaranteeing steady 60 FPS scrolling.
 - 💬 **10+ Conversational Practice Modes**: Job Interview, Travel, Business Meeting, Airport, Healthcare, Debate, Daily Life.
 - ⚡ **Verifiable Native FFI**: Direct C ABI dynamic library link (`libeloqui_native.so` / `eloqui_native.dll`).
-- 🔒 **Zero Data Leakage**: No audio, transcripts, or personal data ever leave the device.
+- 🔐 **Cryptographic Model Verification**:
+  - SHA-256 integrity checks against trusted checksums for all offline model bundles.
+  - Fail-closed security policy prevents mounting unverified or altered model weights.
+- 🔒 **Zero Data Leakage**: No audio, transcripts, or personal data ever leave the device; crash logs strictly sanitize conversation text.
 
 ---
 
