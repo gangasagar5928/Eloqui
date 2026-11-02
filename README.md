@@ -155,30 +155,50 @@ eloqui/
 │   ├── app/                       # Router, theme, main app entry
 │   ├── core/
 │   │   ├── database/              # SQLite schema & database helpers
-│   │   ├── models/                # Conversation, IELTS Score, Vocab models
-│   │   └── services/
-│   │       ├── ai_engine.dart     # LlamaCppEngine & SequentialModelPipeline
-│   │       ├── native_ffi_bridge.dart # Direct Dart FFI native bridge
-│   │       ├── ielts_evaluator.dart # 4-Criterion IELTS Band calculation engine
-│   │       ├── grammar_service.dart # Real-time grammar & syntactic rule checker
-│   │       ├── stt_service.dart   # Native Whisper STT service
-│   │       ├── tts_service.dart   # Piper neural voice synthesizer
-│   │       └── download_manager.dart # HTTP Range resumable model downloader
+│   │   ├── models/                # Conversation, IELTS Score, Vocab, Collocation models
+│   │   ├── services/
+│   │   │   ├── ai_engine.dart     # LlamaCppEngine & SequentialModelPipeline
+│   │   │   ├── ai_session_manager.dart # Fail-safe AI session & isolate manager
+│   │   │   ├── audio_cache_cleaner.dart # Auto-eviction daemon for recording storage
+│   │   │   ├── audio_processing_service.dart # Adaptive silence & RMS energy floor
+│   │   │   ├── download_manager.dart # HTTP Range downloader with SHA-256 verification
+│   │   │   ├── grammar_service.dart # Real-time grammar & syntactic rule checker
+│   │   │   ├── ielts_evaluator.dart # 4-Criterion IELTS Band calculation engine
+│   │   │   ├── inversion_checker.dart # Subject-verb inversion syntax evaluator
+│   │   │   ├── native_ffi_bridge.dart # Direct Dart FFI native bridge
+│   │   │   ├── speech_rate_service.dart # WPM pacing with boundary timestamps
+│   │   │   ├── ssml_service.dart  # SSML prosody and pause tag builder
+│   │   │   ├── stt_service.dart   # Native Whisper STT service
+│   │   │   ├── toefl_evaluator.dart # TOEFL iBT 0-30 task evaluator
+│   │   │   ├── ttr_evaluator.dart # Type-Token Ratio lexical diversity engine
+│   │   │   └── tts_service.dart   # Piper neural voice synthesizer
+│   │   └── widgets/
+│   │       └── glass.dart         # Liquid Glass design system & ambient blur
 │   └── features/
-│       ├── ielts/                 # Parts 1, 2, 3 screens & result scorecard
-│       ├── toefl/                 # TOEFL iBT speaking tasks
-│       ├── pte/                   # PTE Academic speaking tasks
-│       ├── det/                   # Duolingo English Test simulator
-│       ├── conversation/          # Interactive roleplay & daily practice
-│       └── settings/              # Model manager, diagnostics, backups
+│       ├── conversation/          # Roleplay scenarios & microphone interaction
+│       ├── det/                   # Duolingo English Test practice screen
+│       ├── home/                  # Dashboard overview & quick-action grid
+│       ├── ielts/                 # IELTS Parts 1, 2, 3 screens & result scorecard
+│       ├── onboarding/            # Liquid glass onboarding flow
+│       ├── pte/                   # PTE Academic Read Aloud & Describe Image
+│       ├── settings/              # Model manager, diagnostics, backups
+│       └── toefl/                 # TOEFL iBT speaking practice screens
 ├── test/
-│   ├── exam_modules_test.dart     # IELTS/TOEFL/PTE score rubric unit tests
+│   ├── audio_processing_test.dart # Silence thresholding and RMS tests
+│   ├── collocation_test.dart      # C1 collocation & lexical bonus tests
+│   ├── cue_card_test.dart         # IELTS Part 2 cue card prompt bank tests
+│   ├── exam_modules_test.dart     # TOEFL, PTE, DET rubric unit tests
+│   ├── inversion_checker_test.dart # Inversion syntax scoring tests
 │   ├── native_ffi_test.dart       # C ABI bindings & FFI memory safety tests
 │   ├── pipeline_test.dart         # Multi-model RAM guard & benchmark tests
-│   ├── unit_test.dart             # Grammar, STT, and manifest tests
+│   ├── pipeline_verifier_test.dart # Automated CI pipeline verifier
+│   ├── speech_rate_test.dart      # WPM calculation & pacing alert tests
+│   ├── ssml_test.dart             # SSML tag parsing and audio timing tests
+│   ├── ttr_evaluator_test.dart    # Type-Token Ratio lexical diversity tests
+│   ├── unit_test.dart             # Grammar, STT, and SHA-256 manifest tests
 │   └── widget_test.dart           # UI scorecard & result widget tests
 └── tool/
-    └── verify_pipeline.dart       # Standalone CLI pipeline verification tool
+    └── verify_pipeline.dart       # Standalone CLI pipeline verification runner
 ```
 
 ---
@@ -194,14 +214,28 @@ eloqui/
 # Fetch dependencies
 flutter pub get
 
-# Run test suite
+# Run 46-test comprehensive suite
 flutter test
 
 # Run app on connected device or emulator
 flutter run
 ```
 
+### Standalone CLI Pipeline Benchmark
+Verify the sequential RAM lifecycle and mock scoring pipeline directly from your terminal:
+```bash
+dart run tool/verify_pipeline.dart
+```
+
 ### Building Release APK
+Compile a release build with icon tree-shaking flags:
+```bash
+flutter build apk --release --no-tree-shake-icons
+```
+The output binary is located at:
+- `build/app/outputs/flutter-apk/app-release.apk` (~60.3 MB release binary)
+
+Or build per-ABI splits:
 ```bash
 flutter build apk --release --split-per-abi
 ```
