@@ -59,9 +59,10 @@ On 4GB and 6GB Android devices, running Llama LLM (1.8 GB heap) and Whisper STT 
 - AI inference runs isolated from the UI main thread.
 - If native C++ code panics or times out (>25 seconds), `AISandbox` intercepts the error, kills only the worker isolate, re-initializes `libeloqui_native.so`, and preserves user UI state seamlessly.
 
-### 🔐 Multi-Tier Security Verification
-- **SHA-256 Checksum**: Verifies file integrity after offline download/sideload.
-- **RSA Digital Signatures**: `ModelBundleManifest.digitalSignatureRsa` verifies official Eloqui cryptographic signatures before mounting model weights.
+### 🔐 Cryptographic Integrity & Security Verification
+- **SHA-256 Checksum Verification**: Enforces rigorous cryptographic hash checking against trusted manifest checksums.
+- **Fail-Closed Validation Policy**: Missing or mismatched checksums fail closed (isVerified: false) to ensure unverified or tampered weights are never treated as authentic.
+- **Privacy Telemetry Sanitization**: TTS logging strictly scrubs conversation content to preserve zero-leakage offline guarantees.
 
 ---
 
@@ -80,7 +81,7 @@ On 4GB and 6GB Android devices, running Llama LLM (1.8 GB heap) and Whisper STT 
 | `settings` | Key-value settings storage (theme, power profile, model path) |
 | `user_profile` | Target CEFR level, target IELTS/TOEFL band, daily goal minutes |
 | `mistake_history` | Historical mistake tracking for adaptive revision |
-| `downloads` | Downloaded model packs, checksums, and RSA validation status |
+| `downloads` | Downloaded model packs, checksums, and integrity validation status |
 | `custom_topics` | User-created custom speaking practice topics |
 | `weekly_summary` | Aggregate weekly analytics for chart visualization |
 | `achievements` | Gamification badges and streak milestone unlock status |
