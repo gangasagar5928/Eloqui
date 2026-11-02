@@ -64,6 +64,28 @@ Eloqui solves this with a **Deterministic Sequential Lifecycle Pipeline** coordi
 
 ---
 
+## 📊 Multi-Exam Evaluation & Speech Analytics
+
+Eloqui provides standardized, objective scoring engines tailored to official international English proficiency exams:
+
+| Exam Module | Score Scale | Evaluated Criteria | Primary Engine |
+| :--- | :--- | :--- | :--- |
+| **IELTS Speaking** | Band 0.0 – 9.0 | Fluency & Coherence, Lexical Resource, Grammatical Range & Accuracy, Pronunciation | `IeltsEvaluator` |
+| **TOEFL iBT Speaking** | 0 – 30 Scaled | Delivery (pacing & pauses), Language Use (syntax & vocabulary), Topic Development | `ToeflEvaluator` |
+| **PTE Academic** | 10 – 90 Scaled | Oral Fluency, Acoustic Pronunciation, Content Accuracy (Read Aloud, Repeat Sentence) | `PteEvaluator` |
+| **Duolingo English Test** | 10 – 160 Scaled | Literacy, Comprehension, Conversation, Production subscores | `DetEvaluator` |
+
+### Automated Linguistic & Acoustic Analytics Pipeline
+- **WPM Pacing & Cadence (`SpeechRateService`)**: Word-boundary timestamp analysis with optimal band feedback (120–150 WPM).
+- **Lexical Diversity (`TypeTokenRatioEvaluator`)**: TTR calculation with dynamic penalties for excessive lexical repetition.
+- **Idiomatic Recognition (`CollocationAnalyzer`)**: Automated matching of CEFR B2/C1 collocations for lexical resource bonuses.
+- **Syntactic Complexity (`InversionGrammarChecker`)**: Identifies inversion syntax in conditional and negative adverbial structures.
+- **Acoustic Noise Robustness (`AdaptiveSilenceDetector`)**: Calibrated RMS energy floor for noisy real-world mobile dictation.
+- **Natural Voice Cadence (`SsmlTagBuilder`)**: Prosody, rate, and pitch synthesis tags for realistic examiner voice reproduction.
+- **Storage Conservation (`AudioCacheCleaner`)**: Background LRU cache manager maintaining recorded audio footprint under 50 MB.
+
+---
+
 ## 🔬 Verifiable Benchmark & Reproduction
 
 You can independently verify the offline pipeline, latency, and scoring engine without downloading 2GB model files:
